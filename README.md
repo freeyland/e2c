@@ -4,9 +4,7 @@
 
 <p align="center">
   <a href="https://github.com/magento/magento2" target="_blank"><img src="https://img.shields.io/badge/magento-2.X-brightgreen.svg?logo=magento&longCache=true&style=for-the-badge&logoColor=white" alt="Supported Magento Versions" /></a>
-  <a href="https://hub.docker.com/r/emma2click/e2c/" target="_blank"><img src="https://img.shields.io/docker/pulls/emma2click/e2c.svg?label=docker%20pulls&style=for-the-badge&logo=docker&logoColor=white&color=brightgreen" alt="Docker Hub Pulls" /></a>
-  <a href="https://join.slack.com/t/emma2click/shared_invite/enQtNjE1Mjc0NDM3MjE4LWMwMjJjMTcyMmM1MzhkYmExNWIxMmNhYjY1ZDY3ZTM2MTk3ODlkZDY1ZjA5MjJkYjAyNGRiMGM3ODA3N2Y5MmI" target="_blank"><img src="https://img.shields.io/badge/chat-Emma2click-brightgreen.svg?style=for-the-badge&logo=slack" alt="Emma2click in Slack"/></a>
-  <a href="https://twitter.com/intent/follow?screen_name=mage2_click" target="_blank"><img src="https://img.shields.io/twitter/follow/mage2_click?color=brightgreen&label=mage2_click&logo=twitter&logoColor=white&style=for-the-badge" /></a>
+  
 </p>
 
 Emma2click toolset is a system-wide command-line tool for creating and managing simultaneously running docker Magento projects with insanely easy installation and configuration. It includes plenty of configurable services and useful commands for developing and project orchestration right out of the box. On macOS systems, mutagen.io tool will be bundled in the toolset for high-performance files sync between host and docker containers.
