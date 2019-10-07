@@ -75,7 +75,7 @@ After toolset is installed on your system, you may use it to initialize new or e
 
 To get a list of all commands and usage information, run ```e2c``` or ```e2c --help``` which is equivalent.
 
-### Interactive project initialization mode
+### Interactive project initialization mode (existing and new)
 
 To initialize project, open the desired directory with terminal and run
 
@@ -99,6 +99,10 @@ To get a list of all available parameters and flags for project configuration, r
 e2c init --help
 e2c db --help
 ```
+
+## PhpMyadmin
+
+You can access phpmyadmin page by surfing to http://pma.[E2C_CFG_DOMAIN_NAME]
 
 ## License
 
