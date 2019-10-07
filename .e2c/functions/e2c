@@ -265,7 +265,7 @@ e2c_db_shell() {
     else
         e2c_tty=1
     fi
-      docker exec -u app -${e2c_tty:+t}i "${E2C_CFG_DOMAIN_NAME}__db" /bin/sh "$@"
+    docker exec -${e2c_tty:+t}i "${E2C_CFG_DOMAIN_NAME}__db" /bin/sh "$@"
 }
 
 e2c_db_mysqldump() {
