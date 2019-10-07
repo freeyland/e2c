@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+
+HOME="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+
+VERSIONS=("5.6" "7.0" "7.1" "7.2")
+VERSIONS=(""7.2")
+
+for i in "${!VERSIONS[@]}"; do
+    docker build -f "${HOME}/${VERSIONS[$i]}/fpm/alpine/Dockerfile" \
+        -t "freeyland-e2c-php-fpm-${VERSIONS[$i]}-alpine" \
+        "${HOME}"
+    docker tag "freeyland-e2c-php-fpm-${VERSIONS[$i]}-alpine" \
+        "freeyland/e2c:php-fpm-${VERSIONS[$i]}-alpine"
+
+    docker build -f "${HOME}/${VERSIONS[$i]}/fpm-xdebug/alpine/Dockerfile" \
+        -t "freeyland-e2c-php-fpm-${VERSIONS[$i]}-xdebug-alpine" \
+        "${HOME}"
+    docker tag "freeyland-e2c-php-fpm-${VERSIONS[$i]}-xdebug-alpine" \
+        "freeyland/e2c:php-fpm-${VERSIONS[$i]}-xdebug-alpine"
+done
+
+rm -rf "${HOME}/.docker"
+
+# Due to docker error "denied: requested access to the resource is denied",
+# echoing commands to run them manually instead of running directly
+echo
+
+for i in "${!VERSIONS[@]}"; do
+    echo "docker push \"freeyland/e2c:php-fpm-${VERSIONS[$i]}-alpine\""
+    echo "docker rmi -f \"freeyland/e2c:php-fpm-${VERSIONS[$i]}-alpine\""
+    echo "docker push \"freeyland/e2c:php-fpm-${VERSIONS[$i]}-xdebug-alpine\""
+    echo "docker rmi -f \"freeyland/e2c:php-fpm-${VERSIONS[$i]}-xdebug-alpine\""
+done

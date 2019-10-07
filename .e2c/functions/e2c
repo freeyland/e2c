@@ -1,0 +1,2776 @@
+#!/bin/bash
+
+if [[ -z ${e2c_global_dir} ]]
+then
+    echo -e "\033[1;31mThis script intended to be sourced and should not be executed directly!\033[0m"
+    exit 1
+fi
+
+declare -r e2c_varnish_versions=("5.2" "4.1")
+declare -r e2c_elasticsearch_versions=("6.8" "6.7" "6.6" "6.5" "6.4" "6.3" "6.2" "6.1" "6.0" \
+                                       "5.6" "5.5" "5.4" "5.3" "5.2" "5.1" "5.0" \
+                                       "2.4" "2.3" "2.2" "2.1" "2.0")
+declare -r e2c_rabbitmq_versions=("3.7" "3.6" "3.5" "3.4" "3.3" "3.2" "3.1" "3.0" \
+                                  "2.8" "2.7" "2.6" "2.5" "2.4" "2.3" "2.2" "2.1" "2.0")
+
+e2c_get_project_dir() {
+    local current_dir="$(pwd)"
+
+    while [[ ! -f "$current_dir/.e2c/docker/.env" ]] && [[ "$current_dir" != ~ ]] && [[ "$current_dir" != "/" ]]
+    do
+        current_dir="$(cd "$current_dir"/.. >/dev/null 2>&1 && pwd)"
+    done
+
+    [[ "$current_dir" != ~ ]] && [[ "$current_dir" != "/" ]] && echo "$current_dir" || echo "$(pwd)"
+}
+
+e2c_save_project_env() {
+    local config_env="$e2c_project_dir/.e2c/docker/.env"
+
+    [[ -f "$config_env" ]] || mkdir -p "$(dirname "$config_env")" && touch "$config_env"
+
+    set | grep '^E2C_CFG_' > "$config_env"
+}
+
+e2c_load_project_env() {
+    local config_env="$e2c_project_dir/.e2c/docker/.env"
+
+    if [[ -f "$config_env" ]]
+    then
+        set -a
+        . "$config_env"
+        set +a
+    fi
+
+    export E2C_PROJECT_PATH="$e2c_project_dir"
+
+    export E2C_TRAEFIK_IP="$(docker ps \
+        --filter "label=com.docker.compose.project=e2c" \
+        --filter "label=com.docker.compose.service=traefik" \
+        -qa | xargs docker inspect \
+        --format="{{index .NetworkSettings.Networks.e2c.IPAddress}}")"
+}
+
+e2c_load_project_defaults_env() {
+    local config_env="$e2c_global_dir/local/docker/.env"
+
+    [[ -f "$config_env" ]] && . "$config_env"
+}
+
+e2c_validate_domain() {
+    local domain=$1
+
+    if [[ -n ${domain} && -n $(echo "$domain" | grep -E \
+        '(^(?:[a-zA-Z0-9](?:(?:[a-zA-Z0-9\-]){0,61}[a-zA-Z0-9])?\.)+test$)') ]]
+    then
+        return 0
+    else
+        return 1
+    fi
+}
+
+e2c_validate_in_array() {
+    local values=() value="$1"
+    shift
+    values+=("$@")
+
+    [[ -n ${value} ]] && e2c_in_array "$value" ${values[@]} && return 0 || return 1
+}
+
+e2c_validate_file() {
+    local value=$1
+
+    [[ -n ${value} && -f "$value" ]] && return 0 || return 1
+}
+
+e2c_validate_url_path() {
+    local value=$1
+
+    [[ -n ${value} && -n $(echo "$value" | grep -E \
+        '(^(?:[a-zA-Z0-9](?:(?:[a-zA-Z0-9\-\_])[a-zA-Z0-9])?)+$)') ]] && return 0 || return 1
+}
+
+e2c_validate_not_empty() {
+    local value=$1
+
+    [[ -n ${value} ]] && return 0 || return 1
+}
+
+e2c_elasticsearch_configure() {
+    local version=${E2C_CFG_ELASTICSEARCH:0:1}
+
+    (
+        e2c_magento notty config:set --scope=default --scope-code=0 catalog/search/engine \
+            elasticsearch${version/2/} && \
+        e2c_magento notty config:set --scope=default --scope-code=0 \
+            catalog/search/elasticsearch${version/2/}_server_hostname \
+            ${E2C_CFG_DOMAIN_NAME}__elasticsearch
+    ) >"$e2c_log" 2>&1
+
+    return $?
+}
+
+e2c_elasticsearch_reset() {
+    local version=${E2C_CFG_ELASTICSEARCH:0:1}
+
+    (
+        e2c_magento notty config:set --scope=default --scope-code=0 catalog/search/engine mysql && \
+        e2c_magento notty config:set --scope=default --scope-code=0 \
+            catalog/search/elasticsearch${version/2/}_server_hostname ""
+    ) >"$e2c_log" 2>&1
+
+    return $?
+}
+
+e2c_set_opt_version() {
+    local name=$1 versions=() default
+
+    shift
+
+    versions=("$@")
+    default=${versions[0]}
+    error="Invalid $name version, supported versions:\n"
+    error_info="$(
+        for i in "${!versions[@]}"
+        do
+            echo -en "${versions[$i]}\t\t"
+            (( ($i + 1) % 5 == 0 )) && echo -en "\n"
+        done)\n"
+
+    e2c_ask_text "Set $name version for your project:" \
+                 "$default" \
+                 "$error" \
+                 "$error_info" \
+                 e2c_validate_in_array "${versions[@]}"
+
+    case "$name" in
+        "Magento")
+            E2C_CFG_MAGENTO="$e2c_res"
+        ;;
+        "Nginx")
+            E2C_CFG_NGINX="$e2c_res"
+        ;;
+        "PHP")
+            E2C_CFG_PHP="$e2c_res"
+        ;;
+        "MariaDB")
+            E2C_CFG_MARIADB="$e2c_res"
+        ;;
+        "Redis")
+            E2C_CFG_REDIS="$e2c_res"
+        ;;
+        "Varnish")
+            E2C_CFG_VARNISH="$e2c_res"
+        ;;
+        "Elasticsearch")
+            E2C_CFG_ELASTICSEARCH="$e2c_res"
+        ;;
+        "RabbitMQ")
+            E2C_CFG_RABBITMQ="$e2c_res"
+        ;;
+    esac
+
+    e2c_res=
+}
+
+e2c_cli() {
+    if [[ "$1" == "notty" ]]
+    then
+        e2c_tty=
+        shift
+    else
+        e2c_tty=1
+    fi
+
+    docker exec -u app -${e2c_tty:+t}i "${E2C_CFG_DOMAIN_NAME}__php" "$@"
+}
+
+e2c_bash() {
+    if [[ "$1" == "notty" ]]
+    then
+        e2c_tty=
+        shift
+    else
+        e2c_tty=1
+    fi
+
+    docker exec -u app -${e2c_tty:+t}i "${E2C_CFG_DOMAIN_NAME}__php" bash "$@"
+}
+
+e2c_composer() {
+    if [[ "$1" == "notty" ]]
+    then
+        e2c_tty=
+        shift
+    else
+        e2c_tty=1
+    fi
+
+    docker exec -u app -${e2c_tty:+t}i "${E2C_CFG_DOMAIN_NAME}__php" composer "$@"
+
+    if [[ "$e2c_os" == "darwin" ]]
+    then
+        e2c_msg "\nConsider on pulling vendor directory to the host by running \`e2c pull vendor\` command if composer packages were changed."
+    fi
+}
+
+e2c_db() {
+    if (("$#"))
+    then
+        e2c_in_array "--help" $@ && e2c_db_help
+
+        case "$1" in
+            mysql)
+                shift
+                e2c_db_mysql "$@"
+            ;;
+            shell)
+                shift
+                e2c_db_shell "$@"
+            ;;
+            import)
+                shift
+                e2c_db_import "$1"
+            ;;
+            export)
+                e2c_db_export
+            ;;
+            *)
+                e2c_db_error $@
+            ;;
+        esac
+    else
+        e2c_db_help
+    fi
+}
+
+e2c_db_mysql() {
+    if [[ "$1" == "notty" ]]
+    then
+        e2c_tty=
+        shift
+    else
+        e2c_tty=1
+    fi
+
+    docker exec -${e2c_tty:+t}i "${E2C_CFG_DOMAIN_NAME}__db" mysql \
+        -hdb -u"$E2C_CFG_MYSQL_USER" -p"$E2C_CFG_MYSQL_PASSWORD" "$E2C_CFG_MYSQL_DATABASE" "$@"
+}
+
+e2c_db_shell() {
+    if [[ "$1" == "notty" ]]
+    then
+        e2c_tty=
+        shift
+    else
+        e2c_tty=1
+    fi
+
+    docker exec -u app -${e2c_tty:+t}i "${E2C_CFG_DOMAIN_NAME}__db" /bin/sh "$@"
+}
+
+e2c_db_mysqldump() {
+    if [[ "$1" == "notty" ]]
+    then
+        e2c_tty=
+        shift
+    else
+        e2c_tty=1
+    fi
+
+    docker exec -${e2c_tty:+t}i "${E2C_CFG_DOMAIN_NAME}__db" mysqldump \
+        -hdb -u"$E2C_CFG_MYSQL_USER" -p"$E2C_CFG_MYSQL_PASSWORD" "$E2C_CFG_MYSQL_DATABASE" "$@"
+}
+
+e2c_db_import() {
+    local file="$1"
+
+    if [[ -f "$file" ]]
+    then
+        e2c_info_bold "\n[Importing database]\n\n"
+        e2c_info "$file "
+        e2c_info_bold "→"
+        e2c_info " DB\n\n"
+
+        if file --mime-type "$file" | grep -q gzip$; then
+            e2c_msg "Unpacking and importing database dump file.............................  "
+            e2c_loading
+            (
+                gunzip -c "$file" | \
+                    LANG=C LC_CTYPE=C LC_ALL=C sed -e 's/DEFINER[ ]*=[ ]*[^*]*\*/\*/' | \
+                    e2c_db_mysql notty
+            ) >"$e2c_log" 2>&1
+            e2c_result $?
+        else
+            e2c_msg "Importing database dump file...........................................  "
+            e2c_loading
+            (
+                cat "$file" | \
+                    LANG=C LC_CTYPE=C LC_ALL=C sed -e 's/DEFINER[ ]*=[ ]*[^*]*\*/\*/' | \
+                    e2c_db_mysql notty
+            ) >"$e2c_log" 2>&1
+            e2c_result $?
+        fi
+
+        e2c_msg "Setting the project domain name........................................  "
+        e2c_loading
+        e2c_magento notty config:set web/secure/base_url "https://$E2C_CFG_DOMAIN_NAME/" >"$e2c_log" 2>&1 && \
+        e2c_magento notty config:set web/unsecure/base_url "https://$E2C_CFG_DOMAIN_NAME/" >"$e2c_log" 2>&1
+        e2c_result $?
+    elif [[ -n ${file} ]]
+    then
+        e2c_error "Cannot locate database dump file at specified path: $file!\n"
+    else
+        e2c_error "Specify full path to plain sql or gzipped database dump file to import.\n"
+    fi
+}
+
+e2c_db_export() {
+    local file="$e2c_project_dir/db.$(date +%F.%H%M%S).sql.gz"
+
+    e2c_info_bold "\n[Exporting database]\n\n"
+    e2c_info "DB "
+    e2c_info_bold "→"
+    e2c_info " $file\n\n"
+
+    e2c_msg "Creating and compressing database dump file............................  "
+    e2c_loading
+    (
+        e2c_db_mysqldump --single-transaction --quick | \
+            LANG=C LC_CTYPE=C LC_ALL=C sed -e 's/DEFINER[ ]*=[ ]*[^*]*\*/\*/' | \
+            gzip > "$file"
+    ) >"$e2c_log" 2>&1
+    e2c_result $?
+}
+
+e2c_db_error() {
+    e2c_error "Unknown argument \`$@\`. Run \`e2c db --help\` for usage information.\n"
+    exit 1
+}
+
+e2c_db_help() {
+    echo -e "
+\033[1;33mInformation:\033[0m
+  Import/Export database commands and mysql cli tool access.
+
+\033[1;33mUsage:\033[0m
+  e2c db [command] [--help]
+
+\033[1;33mCommands:\033[0m
+  mysql     Run mysql CLI command or open mysql command prompt.
+  export    Export magento database to gzip compressed sql dump.
+  import    Import plain sql or gzipped sql database dump file.
+
+\033[1;33mFlags:\033[0m
+  --help    Display this information.
+"
+    exit 0
+}
+
+e2c_global() {
+    e2c_in_array "--help" $@ && e2c_global_help
+
+    case "$1" in
+        info|status)
+            e2c_global_info
+        ;;
+        projects)
+            e2c_global_projects
+        ;;
+        uninstall)
+            e2c_global_uninstall
+        ;;
+        update)
+            e2c_global_update
+        ;;
+        *)
+            local e2c_global_services=("portainer" "mailhog" "dnsmasq" "traefik" "emma2click")
+            local e2c_global_service=()
+            local e2c_global_command=
+
+            while (("$#")); do
+                case "$1" in
+                    up|start|restart|stop)
+                        e2c_global_command="$1"
+                        shift
+                    ;;
+                    portainer|mailhog|dnsmasq|traefik|emma2click)
+                        e2c_global_service+=($1)
+                        shift
+                    ;;
+                    *)
+                        e2c_global_error "$1"
+                    ;;
+                esac
+            done
+
+            (("${#e2c_global_service[@]}")) || e2c_global_service+=${e2c_global_services[@]}
+
+            case ${e2c_global_command} in
+                up)
+                    e2c_global_up "${e2c_global_service[@]}"
+                ;;
+                start)
+                    e2c_global_start "${e2c_global_service[@]}"
+                ;;
+                restart)
+                    e2c_global_restart "${e2c_global_service[@]}"
+                ;;
+                stop)
+                    e2c_global_stop "${e2c_global_service[@]}"
+                ;;
+                *)
+                    e2c_global_help
+                ;;
+            esac
+        ;;
+    esac
+
+}
+
+e2c_global_error() {
+    e2c_error "Unknown argument \`$1\`. Run \`e2c global --help\` for usage information.\n"
+    exit 1
+}
+
+e2c_global_print_service() {
+    case "$1" in
+        portainer)
+            e2c_msg "Portainer..............................................................  "
+        ;;
+        mailhog)
+            e2c_msg "Mailhog................................................................  "
+        ;;
+        dnsmasq)
+            e2c_msg "Dnsmasq................................................................  "
+        ;;
+        traefik)
+            e2c_msg "Traefik................................................................  "
+        ;;
+        emma2click)
+            e2c_msg "Emma2click.............................................................  "
+        ;;
+    esac
+}
+
+e2c_global_up() {
+    local service=($1)
+
+    e2c_info_bold "\n[Creating docker container$( (("${#service[@]}" > 1)) && echo "s" )]\n\n"
+
+    for i in "${!service[@]}"
+    do
+        e2c_global_print_service ${service[$i]}
+        e2c_loading
+        docker-compose --project-name e2c \
+            --file "$e2c_global_dir/docker/docker-compose.yml" up \
+            -d --force-recreate ${service[$i]} >"$e2c_log" 2>&1
+        e2c_result $?
+    done
+}
+
+e2c_global_start() {
+    local service=($1)
+
+    e2c_info_bold "\n[Starting docker container$( (("${#service[@]}" > 1)) && echo "s" )]\n\n"
+
+    for i in "${!service[@]}"
+    do
+        e2c_global_print_service ${service[$i]}
+        e2c_loading
+        docker start $(docker ps \
+            --filter "label=com.docker.compose.project=e2c" \
+            --filter "label=com.docker.compose.service=${service[$i]}" \
+            -qa) >"$e2c_log" 2>&1
+        e2c_result $?
+    done
+}
+
+e2c_global_restart() {
+    local service=($1)
+
+    e2c_info_bold "\n[Restarting docker container$( (("${#service[@]}" > 1)) && echo "s" )]\n\n"
+
+    for i in "${!service[@]}"
+    do
+        e2c_global_print_service ${service[$i]}
+        e2c_loading
+        docker restart $(docker ps \
+            --filter "label=com.docker.compose.project=e2c" \
+            --filter "label=com.docker.compose.service=${service[$i]}" \
+            -qa) >"$e2c_log" 2>&1
+        e2c_result $?
+    done
+}
+
+e2c_global_stop() {
+    local service=($1)
+
+    e2c_info_bold "\n[Stopping docker container$( (("${#service[@]}" > 1)) && echo "s" )]\n\n"
+
+    for i in "${!service[@]}"
+    do
+        e2c_global_print_service ${service[$i]}
+        e2c_loading
+        docker stop $(docker ps \
+            --filter "label=com.docker.compose.project=e2c" \
+            --filter "label=com.docker.compose.service=${service[$i]}" \
+            -qa) >"$e2c_log" 2>&1
+        e2c_result $?
+    done
+}
+
+e2c_global_projects() {
+    e2c_logo
+
+    local projects="$(docker ps --filter "label=e2c.project.path" -qa | \
+        xargs docker inspect --format='{{index .Config.Labels "com.docker.compose.project"}}' | \
+        uniq)"
+    local spaces containers
+
+    projects=(${projects})
+
+    for i in "${!projects[@]}"
+    do
+        spaces="$(printf "%-${#projects[$i]}s" " ")"
+        containers="$(docker ps \
+            --filter "label=com.docker.compose.project=${projects[$i]}" \
+            --format 'table {{.ID}}  {{.Names}}\t{{.Image}}\t{{.Status}}' -a | \
+            sed "s/${projects[$i]}.test__//; s/${spaces}       IMAGE/IMAGE/")\n\n"
+
+        e2c_msg "=========================================================================\n\n"
+        e2c_info "Project: "
+        e2c_info_bold "$(echo "${projects[$i]}" | sed 's/.*/https:\/\/&.test/')\n"
+        if echo "$containers" | grep -q "phpmyadmin"
+        then
+            e2c_info "phpMyAdmin: "
+            e2c_info_bold "$(echo "${projects[$i]}" | sed 's/.*/https:\/\/pma.&.test/')\n"
+        fi
+        if echo "$containers" | grep -q "elasticsearch"
+        then
+            e2c_info "Elasticsearch: "
+            e2c_info_bold "$(echo "${projects[$i]}" | sed 's/.*/https:\/\/elasticsearch.&.test/')\n"
+        fi
+        if echo "$containers" | grep -q "rabbitmq"
+        then
+            e2c_info "RabbitMQ: "
+            e2c_info_bold "$(echo "${projects[$i]}" | sed 's/.*/https:\/\/rabbitmq.&.test/')\n"
+        fi
+        e2c_info "Path: "
+        e2c_info_bold "$(docker inspect --format='{{index .Config.Labels "e2c.project.path"}}' \
+            "${projects[$i]}.test__php")\n\n"
+        e2c_msg "$containers"
+    done
+
+    e2c_msg "=========================================================================\n"
+    exit 0
+}
+
+e2c_global_info() {
+    local project="e2c"
+    local spaces="$(printf "%-${#project}s" " ")"
+    local containers="$(docker ps \
+            --filter "label=com.docker.compose.project=${project}" \
+            --format 'table {{.ID}}  {{.Names}}\t{{.Image}}\t{{.Status}}' -a | \
+            sed "s/${project}.test__//; s/${spaces}       IMAGE/IMAGE/")\n"
+
+    e2c_info "\nEmma2click: "
+    e2c_info_bold "$(echo "${project}" | sed 's/.*/https:\/\/&.test/')\n"
+    if echo "$containers" | grep -q "traefik"
+    then
+        e2c_info "Traefik: "
+        e2c_info_bold "$(echo "${project}" | sed 's/.*/https:\/\/traefik.&.test/')\n"
+    fi
+    if echo "$containers" | grep -q "portainer"
+    then
+        e2c_info "Portainer: "
+        e2c_info_bold "$(echo "${project}" | sed 's/.*/https:\/\/portainer.&.test/')\n"
+    fi
+    if echo "$containers" | grep -q "mailhog"
+    then
+        e2c_info "Mailhog: "
+        e2c_info_bold "$(echo "${project}" | sed 's/.*/https:\/\/mailhog.&.test/')\n"
+    fi
+    if echo "$containers" | grep -q "dnsmasq"
+    then
+        e2c_info "Dnsmasq: "
+        e2c_info_bold "$(echo "${project}" | sed 's/.*/https:\/\/dnsmasq.&.test/')\n"
+    fi
+    e2c_msg "\n$containers"
+    exit 0
+}
+
+e2c_global_update() {
+    local build="$(cat "$e2c_global_dir"/build)" \
+          remote_version
+
+    e2c_info_bold "\n[Update]\n\n"
+    e2c_msg "Checking for update....................................................  "
+    e2c_loading
+    remote_build="$(curl -sL https://raw.githubusercontent.com/emma2click/e2c/master/.e2c/build)"
+
+    if [[ "$remote_build" -gt "$build" ]]
+    then
+        curl -sL -o e2c.run raw.githubusercontent.com/emma2click/e2c/master/e2c && \
+            e2c_result 0 && \
+            chmod 755 e2c.run && \
+            ./e2c.run
+    else
+        e2c_result 0
+        e2c_logo
+        e2c_msg "You’re up-to-date! v$e2c_version is currently the newest version available.\n"
+    fi
+
+    exit 0
+}
+
+e2c_global_uninstall() {
+    e2c_info_bold "\n[Uninstall]\n\n"
+    e2c_msg "Attention!\n\n"
+    e2c_msg "All projects docker containers and its volumes will be removed!\n\n"
+    e2c_msg "Projects files on the host will not be touched. Make sure that\n"
+    e2c_msg "you backed up projects databases. Use \`e2c db export\` per project\n"
+    e2c_msg "to create database dump file as backup.\n\n"
+
+    e2c_ask_bool "Uninstall Emma2click toolset from your system?"
+
+    if [[ -n ${e2c_res} ]]
+    then
+        local projects="$(docker ps --filter "label=e2c.project.path" -qa | \
+            xargs docker inspect --format='{{index .Config.Labels "com.docker.compose.project"}}' | \
+            uniq) e2c"
+
+        projects=(${projects})
+
+        e2c_mutagen daemon stop >/dev/null 2>&1
+
+        for i in "${!projects[@]}"
+        do
+            if [[ "${projects[$i]}" == "e2c" ]]
+            then
+                e2c_info "\nEmma2click: "
+            else
+                e2c_info "\nProject: "
+            fi
+            e2c_info_bold "$(echo "${projects[$i]}" | sed 's/.*/https:\/\/&.test/')\n"
+            e2c_msg "Uninstalling...........................................................  "
+            e2c_loading
+            true
+            docker rm -vf $(docker ps \
+                --filter "label=com.docker.compose.project=${projects[$i]}" \
+                -qa) >"$e2c_log" 2>&1 && \
+            docker network rm $(docker network ls \
+                --filter "label=com.docker.compose.project=${projects[$i]}" \
+                -q) >"$e2c_log" 2>&1
+            e2c_result $?
+        done
+
+        rm -rf "$e2c_global_dir" >/dev/null 2>&1
+        rm -rf /usr/local/bin/e2c
+        rm -rf /usr/local/etc/bash_completion.d/e2c
+    fi
+
+    exit 0
+}
+
+e2c_global_help() {
+    echo -e "
+\033[1;33mInformation:\033[0m
+  Control Emma2click toolset installation and its docker services.
+
+\033[1;33mUsage:\033[0m
+  e2c global <command> [service...] [--help]
+
+\033[1;33mCommands:\033[0m
+  projects      Show existing Emma2click-backed projects.
+  restart       Restart Emma2click toolset docker services.
+  start         Start stopped Emma2click toolset docker services.
+  stop          Stop running Emma2click toolset docker services.
+  up            Create and start Emma2click toolset docker containers,
+                networks and services.
+  update        Check Emma2click toolset for updates.
+  uninstall     Uninstall Emma2click toolset from system.
+
+\033[1;33mServices:\033[0m
+  dnsmasq       Dnsmasq service.
+  emma2click    Emma2click service.
+  mailhog       Mailhog service.
+  portainer     Portainer service.
+  traefik       Traefik service.
+
+\033[1;33mFlags:\033[0m
+  --help        Display this information.
+"
+    exit 0
+}
+
+e2c_grunt() {
+    if [[ "$1" == "notty" ]]
+    then
+        e2c_tty=
+        shift
+    else
+        e2c_tty=1
+    fi
+
+    docker exec -u app -${e2c_tty:+t}i "${E2C_CFG_DOMAIN_NAME}__php" grunt "$@"
+}
+
+e2c_npm() {
+    if [[ "$1" == "notty" ]]
+    then
+        e2c_tty=
+        shift
+    else
+        e2c_tty=1
+    fi
+
+    docker exec -u app -${e2c_tty:+t}i "${E2C_CFG_DOMAIN_NAME}__php" npm "$@"
+}
+
+e2c_node() {
+    if [[ "$1" == "notty" ]]
+    then
+        e2c_tty=
+        shift
+    else
+        e2c_tty=1
+    fi
+
+    docker exec -u app -${e2c_tty:+t}i "${E2C_CFG_DOMAIN_NAME}__php" grunt "$@"
+}
+
+e2c_redis() {
+    docker-compose exec "${E2C_CFG_DOMAIN_NAME}__redis" "$@"
+}
+
+e2c_urn() {
+    e2c_info_bold "\n[URN Highlighter]\n\n"
+
+    e2c_msg "Creating PhpStorm configuration........................................  "
+    e2c_loading
+    e2c_cli notty mkdir .idea >/dev/null 2>&1 && \
+    e2c_magento dev:urn-catalog:generate .idea/misc.xml >"$e2c_log" 2>&1
+    e2c_result $?
+
+    mkdir -p "$e2c_project_dir"/.idea
+    e2c_pull .idea/misc.xml
+
+    sed -i .prev -e 's?/var/www/html?'$e2c_project_dir'?g' \
+            "$e2c_project_dir/.idea/misc.xml"
+
+    if [[ -n ${E2C_CFG_MAGENTO_SRC} ]] && [[ -d "$e2c_project_dir/${E2C_CFG_MAGENTO_SRC}/.idea" ]]
+    then
+        yes | cp -rf "$e2c_project_dir/.idea/misc.xml" "$e2c_project_dir/${E2C_CFG_MAGENTO_SRC}/.idea"
+    fi
+
+    e2c_cli notty rm -rf .idea >/dev/null 2>&1
+
+    e2c_msg "\nUniform Resource Names have been generated!\nRestart PHPStorm to get changes applied.\n"
+}
+
+e2c_help() {
+    e2c_logo
+
+    if [[ "$e2c_os" != "darwin" ]]
+    then
+    echo -e "
+\033[1;33mUsage:\033[0m
+  e2c <command> [arguments...] [--help]
+
+\033[1;33mCommands:\033[0m
+  add           Add optional service to project.
+  bash          Open the bash prompt on project php docker service.
+  cli           Run any cli command without going into the bash prompt.
+  composer      Run composer specific commands.
+  db            Database related commands.
+  grunt         Run grunt specific commands.
+  info          Print project info and status.
+  init          Initialize project in the current directory.
+  magento, m    Run bin/magento specific commands.
+  magerun, mr   Run n98-magerun specific commands.
+  node          Run node specific commands.
+  npm           Run npm specific commands.
+  redis         Run redis specific commands.
+  remove        Remove optional service from project.
+  restart       Restart running docker services and starts all stopped ones.
+  share         Start sharing session over secure ngrok tunnels.
+  sign          Sign specified domain name with ssl certificate.
+  start         Start all stopped docker services.
+  status        Print project info and status.
+  stop          Stop all running docker services.
+  update        Update docker configuration to latest version.
+  urn           Generate URN for PHPStorm and remap paths for the host.
+  varnish       Run varnish specific commands.
+
+\033[1;33mFlags:\033[0m
+  --help        Display this information. To get information about the specific
+                command, use with corresponding command name.
+"
+    else
+    echo -e "
+\033[1;33mUsage:\033[0m
+  e2c <command> [args...] [--help]
+
+\033[1;33mCommands:\033[0m
+  add           Add optional service to project.
+  bash          Open the bash prompt on project php docker service.
+  cli           Run any cli command without going into the bash prompt.
+  composer      Run composer specific commands.
+  db            Database related commands.
+  grunt         Run grunt specific commands.
+  info          Print project info and status.
+  init          Initialize project in the current directory.
+  magento, m    Run bin/magento specific commands.
+  magerun, mr   Run n98-magerun specific commands.
+  mutagen       Run mutagen.io sync related commands.
+  node          Run node specific commands.
+  npm           Run npm specific commands.
+  push          Push specified file or directory to docker container.
+  pull          Pull specified file or directory from docker container.
+  redis         Run redis specific commands.
+  remove        Remove optional service from project.
+  restart       Restart running docker services and starts all stopped ones.
+  share         Start sharing session over secure ngrok tunnels.
+  sign          Sign specified domain name with ssl certificate.
+  start         Start all stopped docker services.
+  status        Print project info and status.
+  stop          Stop all running docker services.
+  sync          Control mutagen.io files sync with docker containers.
+  update        Update docker configuration to latest version.
+  urn           Generate URN for PHPStorm and remap paths for the host.
+  varnish       Run varnish specific commands.
+
+\033[1;33mFlags:\033[0m
+  --help        Display this information. To get information about the specific
+                command, use with corresponding command name.
+"
+    fi
+
+    exit 0
+}
+
+e2c_init() {
+    local e2c_nginx_versions=("1.17" "1.16" "1.15" "1.14" "1.13" "1.12" "1.11" "1.10" "1.9" "1.8")
+    local e2c_php_versions=("7.2" "7.1" "7.0" "5.6")
+    local e2c_mariadb_versions=("10.3" "10.2" "10.1" "10.0")
+    local e2c_redis_versions=("5.0" "4.0" "3.2")
+    local e2c_magento_versions=("2.3.2" "2.3.1" "2.3.0" \
+            "2.2.9" "2.2.8" "2.2.7" "2.2.6" "2.2.5" "2.2.4" "2.2.3" "2.2.2" "2.2.1" "2.2.0" \
+            "2.1.18" "2.1.17" "2.1.16" "2.1.15" "2.1.14" "2.1.13" "2.1.12" "2.1.11" "2.1.10" \
+            "2.1.9" "2.1.8" "2.1.7" "2.1.6" "2.1.5" "2.1.4" "2.1.3" "2.1.2" "2.1.1" "2.1.0" \
+            "2.0.18" "2.0.17" "2.0.16" "2.0.15" "2.0.14" "2.0.13" "2.0.12" "2.0.11" "2.0.10" \
+            "2.0.9" "2.0.8" "2.0.7" "2.0.6" "2.0.5" "2.0.4" "2.0.3" "2.0.2" "2.0.1" "2.0.0")
+#            "1.9.4.2" "1.9.4.1" "1.9.4.0" \
+#            "1.9.3.10" "1.9.3.9" "1.9.3.8" "1.9.3.7" "1.9.3.6" "1.9.3.4" "1.9.3.3" "1.9.3.2" \
+#            "1.9.3.1" "1.9.3.0" \
+#            "1.9.2.4" "1.9.2.3" "1.9.2.2" "1.9.2.1" "1.9.2.0" \
+#            "1.9.1.1" "1.9.1.0" \
+#            "1.9.0.1" "1.9.0.0" \
+#            "1.8.1.0" "1.8.0.0" \
+#            "1.7.0.2" "1.7.0.1" "1.7.0.0")
+    local e2c_init_params=("--domain" "--nginx-version" "--php-version" "--mariadb-version" "--redis-version" \
+            "--varnish-version" "--elasticsearch-version" "--rabbitmq-version" "--magento-version" \
+            "--magento-admin-url" "--magento-import-db" "--elasticsearch"  "--phpmyadmin" \
+            "--rabbitmq" "--varnish" "--magento-sample-data" "--magento-sub-dir")
+    local e2c_magento_exists=
+    local e2c_magento_db_import=
+    local e2c_magento_sample_data=
+
+    e2c_in_array "--help" $@ && e2c_init_help
+
+    echo
+    e2c_ask_bool "Initialize project in the current directory?"
+
+    if [[ -z ${e2c_res} ]]
+    then
+        exit 0
+    else
+        e2c_erase_prev_lines 2
+    fi
+
+    if (("$#"))
+    then
+        e2c_load_project_defaults_env
+
+        while (("$#"))
+        do
+            case "$1" in
+                --*)
+                    param=$1
+
+                    if ! e2c_in_array "$param" ${e2c_init_params[@]}
+                    then
+                        e2c_init_error "$param"
+                    fi
+
+                    case "$param" in
+                        --domain|--domain=*)
+                            if [[ "$param" == "--domain" ]]
+                            then
+                                shift
+                                value="$1"
+                            else
+                                value="${param#*=}"
+                            fi
+
+                            if ! e2c_validate_domain "$value"
+                            then
+                                e2c_error_bold \
+                                    "Invalid domain name $value!\nOnly valid domain names with .test tld are supported!\n"
+                                exit 1
+                            fi
+
+                            E2C_CFG_DOMAIN_NAME="$value"
+                        ;;
+                        --magento-admin-url|--magento-admin-url=*)
+                            if [[ "$param" == "--magento-admin-url" ]]
+                            then
+                                shift
+                                value="$1"
+                            else
+                                value="${param#*=}"
+                            fi
+
+                            if ! e2c_validate_url_path "$value"
+                            then
+                                e2c_error_bold "Invalid admin url path $value!\n"
+                                exit 1
+                            fi
+
+                            E2C_CFG_ADMIN_URL="$value"
+                        ;;
+                        --magento-sub-dir|--magento-sub-dir=*)
+                            if [[ "$param" == "--magento-sub-dir" ]]
+                            then
+                                shift
+                                value="$1"
+                            else
+                                value="${param#*=}"
+                            fi
+
+                            if ! e2c_validate_url_path "$value"
+                            then
+                                e2c_error_bold "Invalid sub-directory name $value!\n"
+                                exit 1
+                            fi
+
+                            E2C_CFG_MAGENTO_SRC="$value"
+                        ;;
+                        --nginx-version|--nginx-version=*)
+                            if [[ "$param" == "--nginx-version" ]]
+                            then
+                                shift
+                                value="$1"
+                            else
+                                value="${param#*=}"
+                            fi
+
+                            e2c_init_check_version "Nginx" "$value" "${e2c_nginx_versions[@]}"
+
+                            E2C_CFG_NGINX="$value"
+                        ;;
+                        --php-version|--php-version=*)
+                            if [[ "$param" == "--php-version" ]]
+                            then
+                                shift
+                                value="$1"
+                            else
+                                value="${param#*=}"
+                            fi
+
+                            e2c_init_check_version "PHP" "$value" "${e2c_php_versions[@]}"
+
+                            E2C_CFG_PHP="$value"
+                        ;;
+                        --mariadb-version|--mariadb-version=*)
+                            if [[ "$param" == "--mariadb-version" ]]
+                            then
+                                shift
+                                value="$1"
+                            else
+                                value="${param#*=}"
+                            fi
+
+                            e2c_init_check_version "MariaDB" "$value" "${e2c_mariadb_versions[@]}"
+
+                            E2C_CFG_MARIADB="$value"
+                        ;;
+                        --redis-version|--redis-version=*)
+                            if [[ "$param" == "--redis-version" ]]
+                            then
+                                shift
+                                value="$1"
+                            else
+                                value="${param#*=}"
+                            fi
+
+                            e2c_init_check_version "Redis" "$value" "${e2c_redis_versions[@]}"
+
+                            E2C_CFG_REDIS="$value"
+                        ;;
+                        --varnish-version|--varnish-version=*)
+                            if [[ "$param" == "--varnish-version" ]]
+                            then
+                                shift
+                                value="$1"
+                            else
+                                value="${param#*=}"
+                            fi
+
+                            e2c_init_check_version "Varnish" "$value" "${e2c_varnish_versions[@]}"
+
+                            E2C_CFG_VARNISH="$value"
+                        ;;
+                        --elasticsearch-version|--elasticsearch-version=*)
+                            if [[ "$param" == "--elasticsearch-version" ]]
+                            then
+                                shift
+                                value="$1"
+                            else
+                                value="${param#*=}"
+                            fi
+
+                            e2c_init_check_version "Elasticsearch" "$value" "${e2c_elasticsearch_versions[@]}"
+
+                            E2C_CFG_ELASTICSEARCH="$value"
+                        ;;
+                        --rabbitmq-version|--rabbitmq-version=*)
+                            if [[ "$param" == "--rabbitmq-version" ]]
+                            then
+                                shift
+                                value="$1"
+                            else
+                                value="${param#*=}"
+                            fi
+
+                            e2c_init_check_version "RabbitMQ" "$value" "${e2c_rabbitmq_versions[@]}"
+
+                            E2C_CFG_RABBITMQ="$value"
+                        ;;
+                        --magento-version|--magento-version=*)
+                            if [[ "$param" == "--magento-version" ]]
+                            then
+                                shift
+                                value="$1"
+                            else
+                                value="${param#*=}"
+                            fi
+
+                            e2c_init_check_version "Magento" "$value" "${e2c_magento_versions[@]}"
+
+                            E2C_CFG_MAGENTO="$value"
+                        ;;
+                        --magento-import-db|--magento-import-db=*)
+                            if [[ "$param" == "--magento-import-db" ]]
+                            then
+                                shift
+                                value="$1"
+                            else
+                                value="${param#*=}"
+                            fi
+
+                            if ! e2c_validate_file "$value"
+                            then
+                                e2c_error_bold \
+                                    "Cannot locate database dump file at specified path: $value!\n"
+                                exit 1
+                            fi
+
+                            e2c_magento_db_import="$value"
+                        ;;
+                        --phpmyadmin)
+                            E2C_CFG_PHPMYADMIN=1
+                        ;;
+                        --magento-sample-data)
+                            e2c_magento_sample_data=1
+                        ;;
+                    esac
+
+                    shift
+                ;;
+                *)
+                    e2c_init_error "$1"
+                ;;
+            esac
+        done
+
+        e2c_save_project_env
+        e2c_logo
+    else
+        e2c_logo
+        e2c_info_bold "\n[Initializing project]\n\n"
+
+        e2c_msg "Scanning current directory.............................................  "
+        e2c_loading && e2c_result 0
+
+        if [[ ! -f "$e2c_project_dir/.e2c/docker/.env" ]]
+        then
+            e2c_load_project_defaults_env
+
+            e2c_msg "Project .env file is not found, starting interactive setup.............  "
+            e2c_loading && e2c_result 0
+
+            e2c_info_bold "\n[Configure project]\n\n"
+
+            e2c_ask_text "Set the domain name for your project:" \
+                         "$(basename "$e2c_project_dir" | awk '{print tolower($0)}').test" \
+                         "Invalid domain name: %s!\nOnly valid domain names with .test tld are supported!\n" \
+                         "" \
+                         e2c_validate_domain
+
+            E2C_CFG_DOMAIN_NAME="$e2c_res"
+
+            e2c_set_opt_version "Nginx" "${e2c_nginx_versions[@]}"
+
+            e2c_set_opt_version "PHP" "${e2c_php_versions[@]}"
+
+            e2c_set_opt_version "MariaDB" "${e2c_mariadb_versions[@]}"
+
+            e2c_set_opt_version "Redis" "${e2c_redis_versions[@]}"
+
+            e2c_info_bold "\n[Configure project extras]\n\n"
+
+            e2c_ask_bool "Include Varnish service?"
+            E2C_CFG_VARNISH=${e2c_res}
+
+            if [[ -n ${E2C_CFG_VARNISH} ]]
+            then
+                e2c_set_opt_version "Varnish" "${e2c_varnish_versions[@]}"
+            fi
+
+            e2c_ask_bool "Include Elasticsearch service?"
+            E2C_CFG_ELASTICSEARCH=${e2c_res}
+
+            if [[ -n ${E2C_CFG_ELASTICSEARCH} ]]
+            then
+                e2c_set_opt_version "Elasticsearch" "${e2c_elasticsearch_versions[@]}"
+            fi
+
+            e2c_ask_bool "Include RabbitMQ service?"
+            E2C_CFG_RABBITMQ=${e2c_res}
+
+            if [[ -n ${E2C_CFG_RABBITMQ} ]]
+            then
+                e2c_set_opt_version "RabbitMQ" "${e2c_rabbitmq_versions[@]}"
+            fi
+
+            e2c_ask_bool "Include phpMyAdmin service?"
+            E2C_CFG_PHPMYADMIN=${e2c_res}
+
+            e2c_info_bold "\n[Configure Magento installation]\n\n"
+
+            e2c_ask_bool "Use sub-directory for Magento installation?"
+            E2C_CFG_MAGENTO_SRC=${e2c_res}
+
+            if [[ -n ${E2C_CFG_MAGENTO_SRC} ]]
+            then
+                e2c_ask_text "Set the sub-directory name:" \
+                     "src" \
+                     "Invalid sub-directory name: %s!\n" \
+                     "" \
+                     e2c_validate_url_path
+
+                E2C_CFG_MAGENTO_SRC="$e2c_res"
+            fi
+
+            if e2c_init_detect_magento
+            then
+                e2c_magento_exists=1
+            fi
+
+            if [[ -z ${E2C_CFG_MAGENTO} ]]
+            then
+                e2c_set_opt_version "Magento" "${e2c_magento_versions[@]}"
+            fi
+
+            if [[ "${E2C_CFG_MAGENTO:0:1}" == "2" ]]
+            then
+                e2c_ask_bool "Include Magento sample data?"
+                e2c_magento_sample_data=${e2c_res}
+            fi
+
+            e2c_ask_text "Set the Magento admin url path:" \
+                         "admin" \
+                         "Invalid admin url path: %s!\n" \
+                         "" \
+                         e2c_validate_url_path
+
+            E2C_CFG_ADMIN_URL="$e2c_res"
+
+            e2c_save_project_env
+        else
+            e2c_load_project_env
+
+            e2c_msg "Project .env file is found, proceeding with setup......................  "
+            e2c_loading && e2c_result 0
+
+            if e2c_init_detect_magento
+            then
+                e2c_magento_exists=1
+            fi
+
+            e2c_save_project_env
+        fi
+
+        e2c_init_composer_auth
+
+        if [[ -n ${e2c_magento_exists} && -z ${e2c_magento_db_import} ]]
+        then
+            e2c_info_bold "\n[Configure Database]\n\n"
+
+            e2c_ask_bool "Import existing database?"
+            e2c_magento_db_import=${e2c_res}
+
+            if [[ -n ${e2c_magento_db_import} ]]
+            then
+                e2c_magento_db_import=
+
+                e2c_msg "\nSpecify full path to plain sql or gzipped database dump file to import.\n\n"
+
+                e2c_ask_text "Set the database dump file path:" \
+                             "" \
+                             "Cannot locate database dump file at specified path: %s!\n" \
+                             "" \
+                             e2c_validate_file
+
+                e2c_magento_db_import="$e2c_res"
+            fi
+        fi
+    fi
+
+    local url
+
+    mkdir -p "$e2c_project_dir"/.e2c/mutagen "$e2c_project_dir"/.e2c/mysql
+    yes | cp -rf "$e2c_global_dir"/local/docker/* "$e2c_project_dir"/.e2c/docker/
+    yes | cp -rf "$e2c_global_dir"/local/mutagen/mutagen.yml "$e2c_project_dir"/.e2c/mutagen/mutagen.yml
+    yes | cp -rf "$e2c_global_dir"/local/mysql/custom.cnf "$e2c_project_dir"/.e2c/mysql/custom.cnf
+    rm -rf "$e2c_project_dir"/.e2c/mutagen/mutagen.yml.lock >/dev/null 2>&1
+
+    if [[ -z ${e2c_magento_exists} ]]
+    then
+        e2c_info_bold "\n[Downloading magento sources]\n\n"
+
+        url="http://pubfiles.nexcess.net/magento/ce-packages/magento$([[ "${E2C_CFG_MAGENTO:0:1}" == "2" ]] && \
+            echo "2")$([[ -n ${e2c_magento_sample_data} && "${E2C_CFG_MAGENTO:0:1}" == "2" ]] && \
+            echo "-with-samples")-$E2C_CFG_MAGENTO.tar.gz"
+
+        if [[ -n ${E2C_CFG_MAGENTO_SRC} ]]
+        then
+            mkdir -p "$e2c_project_dir/$E2C_CFG_MAGENTO_SRC"
+            curl -L "$url" | tar xzf - -o -C "$e2c_project_dir/$E2C_CFG_MAGENTO_SRC"
+        else
+            curl -L "$url" | tar xzf - -o -C "$e2c_project_dir"
+        fi
+    fi
+
+    e2c_info_bold "\n[Cleanup]\n\n"
+    e2c_msg "Cleanup before creating containers.....................................  "
+    e2c_loading
+    e2c_local_project_down >/dev/null 2>&1
+    e2c_result 0
+
+    e2c_local up
+    e2c_push --all
+
+    if [[ -f "$e2c_magento_db_import" ]]
+    then
+        e2c_db_import "$e2c_magento_db_import"
+        e2c_info_bold "\n[Installing Magento]\n\n"
+    else
+        e2c_info_bold "\n[Installing Magento]\n\n"
+
+        e2c_msg "Started magento installation, it may take a while......................  "
+        e2c_loading
+
+        e2c_magento notty setup:install \
+                --db-host=db \
+                --db-name=${E2C_CFG_MYSQL_DATABASE} \
+                --db-user=${E2C_CFG_MYSQL_USER} \
+                --db-password=${E2C_CFG_MYSQL_PASSWORD} \
+                --base-url=https://${E2C_CFG_DOMAIN_NAME}/ \
+                --admin-firstname=${E2C_CFG_ADMIN_FIRSTNAME} \
+                --admin-lastname=${E2C_CFG_ADMIN_LASTNAME} \
+                --admin-email=${E2C_CFG_ADMIN_EMAIL} \
+                --admin-user=${E2C_CFG_ADMIN_USERNAME} \
+                --admin-password=${E2C_CFG_ADMIN_PASSWORD} \
+                --backend-frontname=${E2C_CFG_ADMIN_URL} \
+                --language=${E2C_CFG_LOCALE} \
+                --currency=${E2C_CFG_CURRENCY} \
+                --timezone=${E2C_CFG_TIMEZONE} \
+                --use-rewrites=1 >"$e2c_log" 2>&1 && \
+        e2c_magento notty config:set trans_email/ident_general/email \
+            "owner@$E2C_CFG_DOMAIN_NAME" >"$e2c_log" 2>&1 && \
+        e2c_magento notty config:set trans_email/ident_sales/email \
+            "sales@$E2C_CFG_DOMAIN_NAME" >"$e2c_log" 2>&1 && \
+        e2c_magento notty config:set trans_email/ident_support/email \
+            "support@$E2C_CFG_DOMAIN_NAME" >"$e2c_log" 2>&1 && \
+        e2c_magento notty config:set trans_email/ident_custom1/email \
+            "custom1@$E2C_CFG_DOMAIN_NAME" >"$e2c_log" 2>&1 && \
+        e2c_magento notty config:set trans_email/ident_custom2/email \
+            "custom2@$E2C_CFG_DOMAIN_NAME" >"$e2c_log" 2>&1 && \
+        e2c_magento notty config:set contact/email/recipient_email \
+            "hello@$E2C_CFG_DOMAIN_NAME" >"$e2c_log" 2>&1
+        e2c_result $?
+    fi
+
+    if [[ -n ${e2c_composer_public_key} && -n ${e2c_composer_private_key} ]]
+    then
+        e2c_msg "Configuring composer authentication for docker containers..............  "
+        e2c_loading
+        e2c_cli notty composer config http-basic.repo.magento.com \
+            ${e2c_composer_public_key} ${e2c_composer_private_key} >"$e2c_log" 2>&1
+        e2c_result $?
+    fi
+
+    e2c_msg "Turning on developer mode..............................................  "
+    e2c_loading
+    e2c_magento notty deploy:mode:set developer >"$e2c_log" 2>&1
+    e2c_result $?
+
+    e2c_msg "Configuring Nginx......................................................  "
+    e2c_loading
+    (
+        sed -e 's/fastcgi_backend/$fastcgi_backend/g' \
+            "$e2c_project_dir${E2C_CFG_MAGENTO_SRC:+/${E2C_CFG_MAGENTO_SRC}}/nginx.conf.sample" > \
+            "$e2c_project_dir${E2C_CFG_MAGENTO_SRC:+/${E2C_CFG_MAGENTO_SRC}}/nginx.conf" && \
+        docker cp "$e2c_project_dir${E2C_CFG_MAGENTO_SRC:+/${E2C_CFG_MAGENTO_SRC}}/nginx.conf" \
+            "${E2C_CFG_DOMAIN_NAME}__php":/var/www/html/nginx.conf && \
+        docker exec "${E2C_CFG_DOMAIN_NAME}__php" chown -R app:app nginx.conf && \
+        e2c_local_container_restart nginx
+    ) >"$e2c_log" 2>&1
+    e2c_result $?
+
+    e2c_msg "Configuring Redis for caching..........................................  "
+    e2c_loading
+    e2c_redis_configure
+    e2c_result $?
+
+    if [[ -n ${E2C_CFG_ELASTICSEARCH} ]]
+    then
+        e2c_msg "Configuring Elasticsearch..............................................  "
+        e2c_loading
+        e2c_elasticsearch_configure
+        e2c_result $?
+    fi
+
+    if [[ -n ${E2C_CFG_VARNISH} ]]
+    then
+        e2c_msg "Configuring Varnish....................................................  "
+        e2c_loading
+        e2c_varnish_configure
+        e2c_result $?
+    fi
+
+    if [[ "${E2C_CFG_MAGENTO:0:1}" == "2" ]]
+    then
+        e2c_msg "Forcing deploy of static content.......................................  "
+        e2c_loading
+        e2c_magento notty setup:static-content:deploy -f >"$e2c_log" 2>&1
+        e2c_result $?
+
+        e2c_msg "Installing Magento node modules dependencies...........................  "
+        e2c_loading
+        (
+            yes | cp -rf "$e2c_project_dir${E2C_CFG_MAGENTO_SRC:+/${E2C_CFG_MAGENTO_SRC}}/package.json.sample" \
+                "$e2c_project_dir${E2C_CFG_MAGENTO_SRC:+/${E2C_CFG_MAGENTO_SRC}}/package.json" && \
+            docker cp "$e2c_project_dir${E2C_CFG_MAGENTO_SRC:+/${E2C_CFG_MAGENTO_SRC}}/package.json" \
+                "${E2C_CFG_DOMAIN_NAME}__php":/var/www/html/package.json && \
+            docker exec "${E2C_CFG_DOMAIN_NAME}__php" chown -R app:app package.json && \
+            e2c_npm install
+        ) >"$e2c_log" 2>&1
+        e2c_result $?
+
+        e2c_msg "Clearing the cache for good measure....................................  "
+        e2c_loading
+        (
+            e2c_magento notty cache:flush && \
+            e2c_magento notty cache:enable
+        ) >"$e2c_log" 2>&1
+        e2c_result $?
+    fi
+
+    e2c_sign ${E2C_CFG_DOMAIN_NAME}
+
+    if [[ "$e2c_os" == "darwin" ]]
+    then
+        e2c_info_bold "\n[Mutagen]\n\n"
+        e2c_msg "Starting sync sessions.................................................  "
+        e2c_loading
+        e2c_sync start >"$e2c_log" 2>&1 && \
+        sleep 15
+        e2c_result $?
+    fi
+}
+
+e2c_init_check_version() {
+    local name=$1 value=$2 versions=()
+
+    shift
+    shift
+
+    versions+=("$@")
+
+    if ! e2c_in_array ${value} ${versions[@]}
+    then
+        e2c_error_bold "Invalid $name version, supported versions:\n"
+        e2c_error "$(
+            for i in "${!versions[@]}"
+            do
+                echo -en "${versions[$i]}\t\t"
+                (( ($i + 1) % 5 == 0 )) && echo -en "\n"
+            done)\n"
+        exit 1
+    fi
+}
+
+e2c_init_detect_magento() {
+    local exists=
+
+    if [[ -f "$e2c_project_dir${E2C_CFG_MAGENTO_SRC:+/${E2C_CFG_MAGENTO_SRC}}/pub/index.php" && -f "$e2c_project_dir${E2C_CFG_MAGENTO_SRC:+/${E2C_CFG_MAGENTO_SRC}}/composer.json" ]]
+    then
+        e2c_msg "Checking magento source files..........................................  "
+        e2c_loading && e2c_result 0
+
+        version=$(echo $(grep version "$e2c_project_dir${E2C_CFG_MAGENTO_SRC:+/${E2C_CFG_MAGENTO_SRC}}/composer.json" | cut -c 17- | rev | cut -c 3- | rev 2>/dev/null))
+
+        if [[ -n ${version} ]]
+        then
+            e2c_msg "Detected Magento v$version................................................  "
+            E2C_CFG_MAGENTO="$version"
+            e2c_loading && e2c_result 0
+            return 0
+        else
+            e2c_msg "Magento version is not detected, proceeding configuration.................  "
+            e2c_loading && e2c_result 0
+        fi
+    fi
+
+    return 1
+}
+
+e2c_init_composer_auth() {
+    if [[ "${E2C_CFG_MAGENTO:0:1}" == "2" ]]
+    then
+        e2c_info_bold "\n[Configure Composer auth]\n\n"
+
+        e2c_loading
+
+        if hash composer >/dev/null 2>&1
+        then
+            e2c_composer_public_key="$(composer config -ng http-basic.repo.magento.com.username 2>/dev/null || true)"
+            e2c_composer_private_key="$(composer config -ng http-basic.repo.magento.com.password 2>/dev/null || true)"
+        fi
+
+        e2c_result 0
+        e2c_erase_prev_lines 1
+        e2c_msg "Authentication is required for Composer repository repo.magento.com\n\n"
+
+        if [[ -n ${e2c_composer_public_key} && -n ${e2c_composer_private_key} ]]
+        then
+            e2c_ask_bool "Use authentication information from the current composer config?"
+        else
+            e2c_res=
+        fi
+
+        if [[ -z ${e2c_res} || -z ${e2c_composer_public_key} || -z ${e2c_composer_private_key} ]]
+        then
+            e2c_ask_text "Public key:" \
+                     "" \
+                     "Public key cannot be empty!\n" \
+                     "" \
+                     e2c_validate_not_empty
+
+            e2c_composer_public_key="$e2c_res"
+
+            e2c_ask_text "Private key:" \
+                     "" \
+                     "Private key cannot be empty!\n" \
+                     "" \
+                     e2c_validate_not_empty
+
+            e2c_composer_private_key="$e2c_res"
+
+            if [[ -z ${e2c_res} ]] && hash composer >/dev/null 2>&1
+            then
+                e2c_ask_bool "Update the current composer config with provided authentication information?"
+
+                [[ -n ${e2c_res} ]] && composer global config http-basic.repo.magento.com \
+                    "$e2c_composer_public_key" "$e2c_composer_private_key" >/dev/null 2>&1
+            fi
+        fi
+    fi
+}
+
+e2c_init_error() {
+    e2c_error_bold "Unknown argument \`$1\`. Run \`e2c init --help\` for usage information.\n"
+    exit 1
+}
+
+e2c_init_help() {
+    echo -e "
+\033[1;33mInformation:\033[0m
+  Initializes Docker Magento project in the current directory. If no arguments
+  defined, interactive setup mode will be started. If at least one argument
+  is defined, automated setup will be started. All undefined parameters will
+  be set with default values.
+
+\033[1;33mUsage:\033[0m
+  e2c init [parameters...] [flags...]
+
+\033[1;33mParameters:\033[0m
+  --domain <magento.test>           Set domain name with .test tld to use for
+                                    the project.
+  --nginx-version <1.17>            Set Nginx version.
+  --php-version <7.2>               Set PHP version.
+  --mariadb-version <10.3>          Set MariaDB version.
+  --redis-version <5.0>             Set Redis version.
+  --varnish-version <5.2>           Set Varnish version, applicable only when
+                                    --varnish option is present.
+  --elasticsearch-version <6.8>     Set Elasticsearch version. Applicable only
+                                    when --elasticsearch option is present.
+  --rabbitmq-version <3.7>          Set RabbitMQ version. Applicable only when
+                                    --rabbitmq option is present.
+  --magento-version <2.3.2>         Set Magento version to install. Applicable
+                                    only for clean installs.
+  --magento-admin-url <admin>       Set Magento admin url path. Applicable only
+                                    for clean installs.
+  --magento-sub-dir <admin>         Set sub-directory name to use for Magento
+                                    installation. Applicable only for clean
+                                    installs.
+  --magento-import-db <file>        Set path to plain sql or gzipped database
+                                    dump file. Applicable only when running
+                                    command within existing Magento project
+                                    directory.
+
+\033[1;33mFlags:\033[0m
+  --elasticsearch                   Use Elasticsearch search engine.
+  --phpmyadmin                      Use phpMyAdmin database manager.
+  --rabbitmq                        Use RabbitMQ message-broker.
+  --varnish                         Use Varnish cache.
+  --magento-sample-data             Install magento with sample data included,
+                                    applicable only for clean installs.
+  --help                            Display this information.
+"
+    exit 0
+}
+
+e2c_local() {
+    e2c_in_array "--help" $@ && e2c_help
+
+    case "$1" in
+        add)
+            shift
+            e2c_local_add "$@"
+        ;;
+        down)
+            shift
+            e2c_local_down
+        ;;
+        info|status)
+            e2c_local_info
+        ;;
+        remove)
+            shift
+            e2c_local_remove "$@"
+        ;;
+        update)
+            shift
+            e2c_local_update
+        ;;
+        *)
+            local e2c_local_command=
+            local e2c_local_service=()
+            local e2c_local_services=("db" "php" "xdebug" "nginx" "redis" "varnish" \
+                                      "elasticsearch" "phpmyadmin" "rabbitmq")
+
+            local e2c_local_existing_services=($(e2c_local_list_services))
+
+            while (("$#"))
+            do
+                case "$1" in
+                    up|start|restart|stop)
+                        e2c_local_command="$1"
+                        shift
+                    ;;
+                    nginx|php|xdebug|db|redis|varnish|elasticsearch|phpmyadmin|rabbitmq)
+                        if ! [[ "$1" == "varnish" && -z ${E2C_CFG_VARNISH} || \
+                                "$1" == "elasticsearch" && -z ${E2C_CFG_ELASTICSEARCH} || \
+                                "$1" == "phpmyadmin" && -z ${E2C_CFG_PHPMYADMIN} || \
+                                "$1" == "rabbitmq" && -z ${E2C_CFG_RABBITMQ} ]]
+                        then
+                            e2c_local_service+=("$1")
+                        fi
+                        shift
+                    ;;
+                    *)
+                        if e2c_in_array "$1" ${e2c_local_existing_services[@]}
+                        then
+                            e2c_local_service+=("$1")
+                            shift
+                        else
+                            e2c_local_error "$1" "$e2c_local_command"
+                        fi
+                    ;;
+                esac
+            done
+
+            if [[ -n ${e2c_local_command} ]]
+            then
+                if ! (("${#e2c_local_service[@]}"))
+                then
+                    for i in "${!e2c_local_existing_services[@]}"
+                    do
+                        if [[ "$e2c_local_command" == "remove" ]] || ! [[ \
+                                "${e2c_local_services[$i]}" == "varnish" && -z ${E2C_CFG_VARNISH} || \
+                                "${e2c_local_services[$i]}" == "elasticsearch" && -z ${E2C_CFG_ELASTICSEARCH} || \
+                                "${e2c_local_services[$i]}" == "phpmyadmin" && -z ${E2C_CFG_PHPMYADMIN} || \
+                                "${e2c_local_services[$i]}" == "rabbitmq" && -z ${E2C_CFG_RABBITMQ} ]]
+                        then
+                            e2c_local_service+=("${e2c_local_existing_services[$i]}")
+                        fi
+                    done
+                fi
+
+                case ${e2c_local_command} in
+                    up)
+                        e2c_local_up "${e2c_local_service[@]}"
+                    ;;
+                    start)
+                        e2c_local_start "${e2c_local_service[@]}"
+                    ;;
+                    restart)
+                        e2c_local_restart "${e2c_local_service[@]}"
+                    ;;
+                    stop)
+                        e2c_local_stop "${e2c_local_service[@]}"
+                    ;;
+                esac
+            fi
+        ;;
+    esac
+}
+
+e2c_local_add() {
+    case "$@" in
+        varnish)
+            e2c_ask_bool "Add Varnish service?"
+            E2C_CFG_VARNISH=${e2c_res}
+
+            if [[ -n ${E2C_CFG_VARNISH} ]]
+            then
+                e2c_set_opt_version "Varnish" "${e2c_varnish_versions[@]}"
+
+                e2c_save_project_env
+
+                e2c_local up
+
+                e2c_info_bold "\n[Configuring services]\n\n"
+
+                e2c_msg "Configuring Varnish....................................................  "
+                e2c_loading
+                e2c_varnish_configure
+                e2c_result $?
+            fi
+        ;;
+        elasticsearch)
+            e2c_ask_bool "Add Elasticsearch service?"
+            E2C_CFG_ELASTICSEARCH=${e2c_res}
+
+            if [[ -n ${E2C_CFG_ELASTICSEARCH} ]]
+            then
+                e2c_set_opt_version "Elasticsearch" "${e2c_elasticsearch_versions[@]}"
+
+                e2c_save_project_env
+
+                e2c_local up
+
+                e2c_info_bold "\n[Configuring services]\n\n"
+
+                e2c_msg "Configuring Elasticsearch..............................................  "
+                e2c_loading
+                e2c_elasticsearch_configure
+                e2c_result $?
+            fi
+        ;;
+        rabbitmq)
+            e2c_ask_bool "Add RabbitMQ service?"
+            E2C_CFG_RABBITMQ=${e2c_res}
+
+            if [[ -n ${E2C_CFG_RABBITMQ} ]]
+            then
+                e2c_set_opt_version "RabbitMQ" "${e2c_rabbitmq_versions[@]}"
+
+                e2c_save_project_env
+
+                e2c_local up
+            fi
+        ;;
+        phpmyadmin)
+            e2c_ask_bool "Add phpMyAdmin service?"
+            E2C_CFG_PHPMYADMIN=${e2c_res}
+
+            if [[ -n ${E2C_CFG_PHPMYADMIN} ]]
+            then
+                e2c_save_project_env
+                e2c_local up
+            fi
+        ;;
+        *)
+            e2c_local_error "$@" "add"
+        ;;
+    esac
+}
+
+e2c_local_remove() {
+    local service=
+
+    case "$@" in
+        varnish)
+            service="$1"
+            e2c_ask_bool "Remove Varnish service?"
+
+            if [[ "$e2c_res" == "1" ]]
+            then
+                e2c_info_bold "\n[Configuring services]\n\n"
+
+                e2c_msg "Resetting Varnish configuration........................................  "
+                e2c_loading
+                e2c_varnish_reset
+                e2c_result $?
+
+                E2C_CFG_VARNISH=
+            fi
+        ;;
+        elasticsearch)
+            service="$1"
+            e2c_ask_bool "Remove Elasticsearch service?"
+
+            if [[ "$e2c_res" == "1" ]]
+            then
+                e2c_info_bold "\n[Configuring services]\n\n"
+
+                e2c_msg "Resetting Elasticsearch configuration..................................  "
+                e2c_loading
+                e2c_elasticsearch_reset
+                e2c_result $?
+
+                E2C_CFG_ELASTICSEARCH=
+            fi
+        ;;
+        rabbitmq)
+            service="$1"
+            e2c_ask_bool "Remove RabbitMQ service?"
+
+            if [[ "$e2c_res" == "1" ]]
+            then
+                E2C_CFG_RABBITMQ=
+            fi
+        ;;
+        phpmyadmin)
+            service="$1"
+            e2c_ask_bool "Remove phpMyAdmin service?"
+
+            if [[ "$e2c_res" == "1" ]]
+            then
+                E2C_CFG_PHPMYADMIN=
+            fi
+        ;;
+        *)
+            e2c_local_error "$@" "remove"
+        ;;
+    esac
+
+    if [[ -n ${service} ]]
+    then
+        e2c_info_bold "\n[Removing docker container]\n\n"
+        e2c_local_print_service "$service"
+        e2c_loading
+        e2c_local_container_remove "$service"
+        e2c_result $?
+
+        e2c_save_project_env
+        e2c_local up
+    fi
+}
+
+e2c_local_update() {
+    e2c_info_bold "\n[Update]\n\n"
+
+    e2c_ask_bool "Update project docker configuration to latest?"
+
+    if [[ -z ${e2c_res} ]]
+    then
+        exit 0
+    fi
+
+    e2c_msg "\nUpdating project docker configuration..................................  "
+    e2c_loading
+    mkdir -p "$e2c_project_dir"/.e2c/mutagen "$e2c_project_dir"/.e2c/docker "$e2c_project_dir"/.e2c/mysql \
+      >"$e2c_log" 2>&1 && \
+    yes | cp -rf "$e2c_global_dir"/local/docker/* "$e2c_project_dir"/.e2c/docker/ >"$e2c_log" 2>&1 && \
+    yes | cp -rf "$e2c_global_dir"/local/mutagen/mutagen.yml \
+        "$e2c_project_dir"/.e2c/mutagen/mutagen.yml >"$e2c_log" 2>&1 && \
+    yes | cp -rf "$e2c_global_dir"/local/mysql/custom.cnf "$e2c_project_dir"/.e2c/mysql/custom.cnf && \
+    rm -rf "$e2c_project_dir"/.e2c/mutagen/mutagen.yml.lock >"$e2c_log" 2>&1
+    e2c_result $?
+
+    e2c_local up
+}
+
+e2c_local_container_id() {
+    local service="$1"
+
+    echo "$(docker ps \
+            --filter "label=com.docker.compose.project=${E2C_CFG_DOMAIN_NAME/.test/}" \
+            --filter "label=com.docker.compose.service=$service" \
+            -qa)"
+}
+
+e2c_local_active_container_id() {
+    local service="$1"
+
+    echo "$(docker ps \
+            --filter "label=com.docker.compose.project=${E2C_CFG_DOMAIN_NAME/.test/}" \
+            --filter "label=com.docker.compose.service=$service" \
+            -q)"
+}
+
+e2c_local_container_start() {
+    local service="$1"
+
+    if [[ -n ${service} ]]
+    then
+        docker start $(docker ps \
+            --filter "label=com.docker.compose.project=${E2C_CFG_DOMAIN_NAME/.test/}" \
+            --filter "label=com.docker.compose.service=$service" \
+            -qa) >"$e2c_log" 2>&1
+
+        return $?
+    fi
+
+    return 1
+}
+
+e2c_local_container_restart() {
+    local service="$1"
+
+    if [[ -n ${service} ]]
+    then
+        docker restart $(docker ps \
+            --filter "label=com.docker.compose.project=${E2C_CFG_DOMAIN_NAME/.test/}" \
+            --filter "label=com.docker.compose.service=$service" \
+            -qa) >"$e2c_log" 2>&1
+
+        return $?
+    fi
+
+    return 1
+}
+
+e2c_local_container_stop() {
+    local service="$1"
+
+    if [[ -n ${service} ]]
+    then
+        docker stop $(docker ps \
+            --filter "label=com.docker.compose.project=${E2C_CFG_DOMAIN_NAME/.test/}" \
+            --filter "label=com.docker.compose.service=$service" \
+            -qa) >"$e2c_log" 2>&1
+
+        return $?
+    fi
+
+    return 1
+}
+
+e2c_local_container_remove() {
+    local service="$1"
+
+    if [[ -n ${service} ]]
+    then
+        docker rm -vf $(docker ps \
+            --filter "label=com.docker.compose.project=${E2C_CFG_DOMAIN_NAME/.test/}" \
+            --filter "label=com.docker.compose.service=$service" \
+            -qa) >"$e2c_log" 2>&1
+
+        return $?
+    fi
+
+    return 1
+}
+
+e2c_local_info() {
+    local project="${E2C_CFG_DOMAIN_NAME/.test/}"
+    local spaces="$(printf "%-${#project}s" " ")"
+    local containers="$(docker ps \
+            --filter "label=com.docker.compose.project=${project}" \
+            --format 'table {{.ID}}  {{.Names}}\t{{.Image}}\t{{.Status}}' -a | \
+            sed "s/${project}.test__//; s/${spaces}       IMAGE/IMAGE/")\n"
+
+    e2c_info "\nProject: "
+    e2c_info_bold "$(echo "${project}" | sed 's/.*/https:\/\/&.test/')\n"
+    if echo "$containers" | grep -q "phpmyadmin"
+    then
+        e2c_info "phpMyAdmin: "
+        e2c_info_bold "$(echo "${project}" | sed 's/.*/https:\/\/pma.&.test/')\n"
+    fi
+    if echo "$containers" | grep -q "elasticsearch"
+    then
+        e2c_info "Elasticsearch: "
+        e2c_info_bold "$(echo "${project}" | sed 's/.*/https:\/\/elasticsearch.&.test/')\n"
+    fi
+    if echo "$containers" | grep -q "rabbitmq"
+    then
+        e2c_info "RabbitMQ: "
+        e2c_info_bold "$(echo "${project}" | sed 's/.*/https:\/\/rabbitmq.&.test/')\n"
+    fi
+    e2c_info "Path: "
+    e2c_info_bold "$(docker inspect --format='{{index .Config.Labels "e2c.project.path"}}' \
+        "${project}.test__php")\n\n"
+    e2c_msg "$containers"
+
+    exit 0
+}
+
+e2c_local_project_up() {
+    local service="$1"
+
+    if [[ -n ${service} ]]
+    then
+        cd "$e2c_project_dir/.e2c/docker/"
+
+        docker-compose --project-name "${E2C_CFG_DOMAIN_NAME/.test/}" \
+            --file docker-compose.yml \
+            --file docker-compose.$([[ -n ${E2C_CFG_VARNISH} ]] && echo "varnish" || echo "nginx").yml \
+            ${E2C_CFG_PHPMYADMIN:+--file docker-compose.phpmyadmin.yml} \
+            ${E2C_CFG_ELASTICSEARCH:+--file docker-compose.elasticsearch.yml} \
+            ${E2C_CFG_RABBITMQ:+--file docker-compose.rabbitmq.yml} \
+            --file docker-compose.${e2c_os}.yml \
+            up --detach --force-recreate --no-color "$service" >"$e2c_log" 2>&1
+
+        return $?
+    fi
+
+    return 1
+}
+
+e2c_local_list_services() {
+    cd "$e2c_project_dir/.e2c/docker/"
+
+    docker-compose --project-name "${E2C_CFG_DOMAIN_NAME/.test/}" \
+        --file docker-compose.yml \
+        --file docker-compose.$([[ -n ${E2C_CFG_VARNISH} ]] && echo "varnish" || echo "nginx").yml \
+        ${E2C_CFG_PHPMYADMIN:+--file docker-compose.phpmyadmin.yml} \
+        ${E2C_CFG_ELASTICSEARCH:+--file docker-compose.elasticsearch.yml} \
+        ${E2C_CFG_RABBITMQ:+--file docker-compose.rabbitmq.yml} \
+        --file docker-compose.${e2c_os}.yml \
+        ps --services --all
+
+    return $?
+}
+
+e2c_local_project_down() {
+    docker rm -vf $(docker ps \
+        --filter "label=com.docker.compose.project=${E2C_CFG_DOMAIN_NAME/.test/}" \
+        -qa) >"$e2c_log" 2>&1 && \
+    docker network rm $(docker network ls \
+        --filter "label=com.docker.compose.project=${E2C_CFG_DOMAIN_NAME/.test/}" \
+        -q) >"$e2c_log" 2>&1
+
+    return $?
+}
+
+e2c_local_project_check_dir() {
+    if [[ ! -f "$e2c_project_dir/.e2c/docker/.env" ]]
+    then
+        e2c_error "This command intended to be used within the project directory!\nChange the current working directory to project root or to any project's sub-directory.\n"
+        exit 1
+    fi
+}
+
+e2c_local_project_check() {
+    e2c_local_project_check_dir
+
+    if [[ -z "$(e2c_local_container_id php)" ]]
+    then
+        e2c_error "This command intended to be used with the initialized projects only!\nTo initialize a new project in the current directory, run \`e2c init\` command.\n"
+        exit 1
+    fi
+}
+
+e2c_local_active_project_check() {
+    e2c_local_project_check_dir
+
+    if [[ -z "$(e2c_local_container_id php)" ]]
+    then
+        e2c_error "This command intended to be used with the initialized projects only!\nTo initialize a new project in the current directory, run \`e2c init\` command.\n"
+        exit 1
+    elif [[ -z "$(e2c_local_active_container_id php)" ]]
+    then
+        e2c_local start
+    fi
+}
+
+e2c_local_error() {
+    e2c_error "Unknown argument \`$1\`. Run \`e2c$([[ "$2" != "" ]] && \
+        echo " $2") --help\` for usage information.\n"
+    exit 1
+}
+
+e2c_local_print_service() {
+    case "$1" in
+        nginx)
+            e2c_msg "Nginx..................................................................  "
+        ;;
+        php)
+            e2c_msg "PHP....................................................................  "
+        ;;
+        xdebug)
+            e2c_msg "Xdebug.................................................................  "
+        ;;
+        db)
+            e2c_msg "Db.....................................................................  "
+        ;;
+        redis)
+            e2c_msg "Redis..................................................................  "
+        ;;
+        varnish)
+            e2c_msg "Varnish................................................................  "
+        ;;
+        elasticsearch)
+            e2c_msg "Elasticsearch..........................................................  "
+        ;;
+        phpmyadmin)
+            e2c_msg "phpMyAdmin.............................................................  "
+        ;;
+        rabbitmq)
+            e2c_msg "RabbitMQ...............................................................  "
+        ;;
+        *)
+            local service=$(echo "$1" | awk '{ print toupper( substr( $0, 1, 1 ) ) substr( $0, 2 ); }')
+            local chars_count=${#service}
+
+            e2c_msg "$service$(printf %$((71 - chars_count))s | tr " " ".")  "
+        ;;
+    esac
+}
+
+e2c_local_start() {
+    local service=("$@")
+
+    e2c_info_bold "\n[Starting docker container$( (("${#service[@]}" > 1)) && echo "s" )]\n\n"
+
+    for i in "${!service[@]}"
+    do
+        e2c_local_print_service "${service[$i]}"
+        e2c_loading
+        e2c_local_container_start "${service[$i]}"
+        e2c_result $?
+    done
+}
+
+e2c_local_restart() {
+    local service=("$@")
+
+    e2c_info_bold "\n[Restarting docker container$( (("${#service[@]}" > 1)) && echo "s" )]\n\n"
+
+    for i in "${!service[@]}"
+    do
+        e2c_local_print_service "${service[$i]}"
+        e2c_loading
+        e2c_local_container_restart "${service[$i]}"
+        e2c_result $?
+    done
+}
+
+e2c_local_stop() {
+    local service=("$@")
+
+    e2c_info_bold "\n[Stopping docker container$( (("${#service[@]}" > 1)) && echo "s" )]\n\n"
+
+    for i in "${!service[@]}"
+    do
+        e2c_local_print_service "${service[$i]}"
+        e2c_loading
+        e2c_local_container_stop "${service[$i]}"
+        e2c_result $?
+    done
+}
+
+e2c_local_up() {
+    local service=("$@")
+
+    e2c_info_bold "\n[Creating docker container$( (("${#service[@]}" > 1)) && echo "s" )]\n\n"
+
+    for i in "${!service[@]}"
+    do
+        e2c_local_print_service "${service[$i]}"
+        e2c_loading
+        e2c_local_project_up "${service[$i]}"
+        e2c_result $?
+    done
+}
+
+e2c_local_down() {
+    e2c_info_bold "\n[Uninstalling]\n\n"
+    e2c_ask_bool "Remove project docker containers and persistent volumes?"
+
+    if [[ -z ${e2c_res} ]]
+    then
+        exit 0
+    fi
+
+    e2c_msg "\nRemoving project docker containers, volumes and network................  "
+    e2c_loading
+    e2c_local_project_down
+    e2c_result $?
+}
+
+e2c_magento() {
+    if [[ "$1" == "notty" ]]
+    then
+        e2c_tty=
+        shift
+    else
+        e2c_tty=1
+    fi
+
+    docker exec -u app -${e2c_tty:+t}i "${E2C_CFG_DOMAIN_NAME}__php" bin/magento "$@"
+}
+
+e2c_magerun() {
+    if [[ "$1" == "notty" ]]
+    then
+        e2c_tty=
+        shift
+    else
+        e2c_tty=1
+    fi
+
+    docker exec -u app -${e2c_tty:+t}i "${E2C_CFG_DOMAIN_NAME}__php" \
+        "n98-magerun$([[ "${E2C_CFG_MAGENTO:0:1}" == "2" ]] && echo "2")" "$@"
+}
+
+e2c_mutagen() {
+    if [[ "$e2c_os" != "darwin" ]]
+    then
+        e2c_help
+    fi
+
+    export MUTAGEN_DATA_DIRECTORY="$e2c_global_dir"/mutagen
+    "$MUTAGEN_DATA_DIRECTORY"/mutagen daemon start
+    "$MUTAGEN_DATA_DIRECTORY"/mutagen $@
+}
+
+e2c_pull_exec() {
+    local project_dir="${e2c_project_dir}" \
+          sub_dir=${E2C_CFG_MAGENTO_SRC:-} \
+          container="${E2C_CFG_DOMAIN_NAME}__php" \
+          source_path error res
+
+    e2c_info_bold "\n[Pull]\n\n"
+
+    if [[ -z "$1" ]]
+    then
+        e2c_msg "Pulling files from php docker container................................  "
+        e2c_loading
+        e2c_sync pause >/dev/null 2>&1 && \
+        docker cp "$container":/var/www/html/. "$project_dir${sub_dir:+/${sub_dir}}/" >"$e2c_log" 2>&1 && \
+        e2c_sync resume >/dev/null 2>&1
+        res=$?
+        e2c_result ${res}
+        return ${res}
+    else
+        source_path="${1%%+(/)}"
+        dest_path="$project_dir${sub_dir:+/${sub_dir}}/$source_path"
+        e2c_info "$dest_path "
+        e2c_info_bold "←\n\n"
+
+        if e2c_bash notty -c "[[ -d "/var/www/html/${source_path}" ]]" >"$e2c_log" 2>&1
+        then
+            e2c_msg "Pulling directory from php docker container............................  "
+            e2c_loading
+            e2c_sync pause >/dev/null 2>&1 && \
+            docker cp "$container":/var/www/html/"$source_path"/. "$dest_path" >"$e2c_log" 2>&1 && \
+            e2c_sync resume >/dev/null 2>&1
+            res=$?
+            e2c_result ${res}
+            return ${res}
+        elif e2c_bash notty -c "[[ -f "/var/www/html/${source_path}" ]]" >"$e2c_log" 2>&1
+        then
+            e2c_msg "Pulling file from php docker container.................................  "
+            e2c_loading
+            e2c_sync pause >/dev/null 2>&1 && \
+            docker cp "$container":/var/www/html/"$source_path" "$(dirname "$dest_path")" >"$e2c_log" 2>&1 && \
+            e2c_sync resume >/dev/null 2>&1
+            res=$?
+            e2c_result ${res}
+            return ${res}
+        else
+            error="Specified path does not exist on php docker container: \n$source_path\n\n"
+        fi
+    fi
+
+    if [[ -n ${error} ]]
+    then
+        e2c_error "$error"
+    fi
+
+    return 1
+}
+
+e2c_pull_help() {
+    echo -e "
+\033[1;33mInformation:\033[0m
+  Pull file or directory from php docker container to magento src root. To
+  pull multiple files or directories, specify paths as list divided by spaces.
+  To pull all files, use --all flag. e.g. \`e2c pull -all\`. Specified
+  paths must be relative to docker container /var/www/html directory.
+
+\033[1;33mUsage:\033[0m
+  e2c pull [<path1> [<path2>...]] [flags...]
+
+\033[1;33mFlags:\033[0m
+  --all     Pull all files from php docker container to magento src root.
+  --help    Display this information.
+"
+    exit 0
+}
+
+e2c_pull() {
+    if [[ "$e2c_os" != "darwin" ]]
+    then
+        e2c_help
+    fi
+
+    if (("$#"))
+    then
+        e2c_in_array "--help" $@ && e2c_pull_help
+
+        if e2c_in_array "--all" $@
+        then
+            e2c_pull_exec
+        else
+            while (("$#")); do
+                case "$1" in
+                    *)
+                        e2c_pull_exec "$1"
+                    ;;
+                esac
+                shift
+            done
+        fi
+    else
+        e2c_pull_help
+    fi
+}
+
+e2c_push_exec() {
+    local project_dir="${e2c_project_dir}" \
+          sub_dir=${E2C_CFG_MAGENTO_SRC:-} \
+          container="${E2C_CFG_DOMAIN_NAME}__php" \
+          source_path error res
+
+    e2c_info_bold "\n[Push]\n\n"
+
+    if [[ -z "$1" ]]
+    then
+        e2c_msg "Pushing all files to php docker container..............................  "
+        e2c_loading
+        e2c_sync pause >/dev/null 2>&1 && \
+        docker cp "$project_dir${sub_dir:+/${sub_dir}}"/. "$container":/var/www/html/ >"$e2c_log" 2>&1 && \
+        docker exec "$container" chown -R app:app /var/www/ >"$e2c_log" 2>&1 && \
+        docker exec "$container" chmod u+x ./bin/magento >"$e2c_log" 2>&1 && \
+        docker exec "$container" chmod u+w -R ./var ./vendor ./pub/static ./pub/media ./app/etc >"$e2c_log" 2>&1 && \
+        e2c_sync resume >/dev/null 2>&1
+        res=$?
+        e2c_result ${res}
+        return ${res}
+    else
+        dest_path="${1%%+(/)}"
+        source_path="$project_dir${sub_dir:+/${sub_dir}}/$dest_path"
+
+        if [[ -d "$source_path" || -f "$source_path" ]]
+        then
+            e2c_info "$source_path "
+            e2c_info_bold "→\n\n"
+
+            if [[ -d "$source_path" ]]
+            then
+                e2c_msg "Pushing directory to php docker container..............................  "
+                e2c_loading
+                e2c_sync pause >"$e2c_log" 2>&1 && \
+                docker cp "$source_path"/. "$container":/var/www/html/"$dest_path" >"$e2c_log" 2>&1 && \
+                docker exec "$container" chown -R app:app "$dest_path" >"$e2c_log" 2>&1 && \
+                case "$dest_path" in
+                    var|vendor|pub/static|pub/media|app/etc|var/*|vendor/*|pub/static/*|pub/media/*|app/etc/*)
+                        docker exec "$container" chmod u+w -R ./"$dest_path" >"$e2c_log" 2>&1
+                    ;;
+                    *)
+                        true
+                    ;;
+                esac && \
+                e2c_sync resume >"$e2c_log" 2>&1
+            else
+                e2c_msg "Pushing file to php docker container....................................  "
+                e2c_loading
+                e2c_sync pause >"$e2c_log" 2>&1 && \
+                docker cp "$source_path" "$container":/var/www/html/"$(dirname "$dest_path")" >"$e2c_log" 2>&1 && \
+                docker exec "$container" chown -R app:app "$dest_path" >"$e2c_log" 2>&1 && \
+                case "$dest_path" in
+                    bin/magento)
+                        docker exec "$container" chmod u+x ./"$source_path" >"$e2c_log" 2>&1
+                    ;;
+                    var/*|vendor/*|pub/static/*|pub/media/*|app/etc/*)
+                        docker exec "$container" chmod u+w -R ./"$dest_path" >"$e2c_log" 2>&1
+                    ;;
+                    *)
+                        true
+                    ;;
+                esac && \
+                e2c_sync resume >"$e2c_log" 2>&1
+            fi
+
+            res=$?
+            e2c_result ${res}
+            return ${res}
+        else
+            error="Specified path does not exist on host machine: \n$source_path\n\n"
+        fi
+    fi
+
+    if [[ -n ${error} ]]
+    then
+        e2c_error "$error"
+    fi
+
+    return 1
+}
+
+e2c_push_help() {
+    echo -e "
+\033[1;33mInformation:\033[0m
+  Push local file or directory from magento src root to php docker container.
+  To push multiple files or directories, specify paths as list divided by
+  spaces. To push all files, use --all flag. e.g. \`e2c push -all\`.
+  Specified paths must be relative to magento src root directory.
+
+\033[1;33mUsage:\033[0m
+  e2c push [<path1> [<path2>...]] [flags...]
+
+\033[1;33mFlags:\033[0m
+  --all     Push all files from magento src root to php docker container.
+  --help    Display this information.
+"
+    exit 0
+}
+
+e2c_push() {
+    if [[ "$e2c_os" != "darwin" ]]
+    then
+        e2c_help
+    fi
+
+    if (("$#"))
+    then
+        e2c_in_array "--help" $@ && e2c_push_help
+
+        if e2c_in_array "--all" $@
+        then
+            e2c_push_exec
+        else
+            while (("$#")); do
+                case "$1" in
+                    *)
+                        e2c_push_exec "$1"
+                    ;;
+                esac
+                shift
+            done
+        fi
+    else
+        e2c_push_help
+    fi
+}
+
+e2c_redis_configure() {
+    (
+        e2c_magento notty setup:config:set --no-interaction --cache-backend=redis \
+                --cache-backend-redis-server=${E2C_CFG_DOMAIN_NAME}__redis --cache-backend-redis-db=0 && \
+        e2c_magento notty setup:config:set --no-interaction  --page-cache=redis \
+                --page-cache-redis-server=${E2C_CFG_DOMAIN_NAME}__redis --page-cache-redis-db=1 && \
+        e2c_magento notty setup:config:set --no-interaction --session-save=redis \
+                --session-save-redis-host=${E2C_CFG_DOMAIN_NAME}__redis --session-save-redis-log-level=4 \
+                --session-save-redis-db=2
+    ) >"$e2c_log" 2>&1
+
+    return $?
+}
+
+e2c_share() {
+    if (("$#"))
+    then
+        e2c_in_array "--help" $@ && e2c_share_help
+
+        case "$@" in
+            us|eu|ap|au|sa|jp|in)
+                e2c_share_exec $1
+            ;;
+            *)
+                e2c_share_error
+            ;;
+        esac
+    else
+        e2c_share_exec us
+    fi
+}
+
+e2c_share_error() {
+    e2c_error "Unknown argument \`$@\`. Run \`e2c share --help\` for usage information.\n"
+    exit 1
+}
+
+e2c_share_exec() {
+    local region="$1"
+          network="${E2C_CFG_DOMAIN_NAME/.test/}_default" \
+          container="${E2C_CFG_DOMAIN_NAME}__$([[ -n ${E2C_CFG_VARNISH} ]] && echo "varnish" || echo "nginx")" \
+          port="$([[ -n ${E2C_CFG_VARNISH} ]] && echo "80" || echo "8080")"
+
+    e2c_info_bold "\n[Share]\n\n"
+
+    e2c_msg "Checking required dependencies.........................................  "
+    e2c_loading
+    e2c_res="$(e2c_magento notty module:status Shkoliar_Ngrok)"
+    e2c_result 0
+
+    if [[ "$e2c_res" != *"Module is enabled"* ]]
+    then
+        e2c_msg "Installing required dependencies.......................................  "
+        e2c_loading
+        e2c_composer notty require --dev shkoliar/magento-ngrok >"$e2c_log" 2>&1 && \
+        e2c_magento notty module:enable Shkoliar_Ngrok >"$e2c_log" 2>&1 && \
+        e2c_magento notty setup:upgrade >"$e2c_log" 2>&1
+        e2c_res=$?
+        e2c_result ${e2c_res}
+    else
+        e2c_res=0
+    fi
+
+    if [[ "$e2c_res" == "0" ]]
+    then
+        e2c_msg "Starting sharing session...............................................  "
+        e2c_loading
+        docker pull shkoliar/ngrok >"$e2c_log" 2>&1
+        e2c_result ${e2c_res}
+
+        docker run --rm -it -p 0.0.0.0:4551:4551/tcp --link ${container} --net ${network} \
+                --name ${E2C_CFG_DOMAIN_NAME}__ngrok shkoliar/ngrok ngrok http -region=${region} \
+                -bind-tls=true ${container}:${port} 2>"$e2c_log"
+        e2c_res=$?
+
+        if [[ "$e2c_res" == "0" ]]
+        then
+            e2c_msg "Sharing session ended..................................................  "
+            e2c_result 0
+        elif [[ -f "$e2c_log" ]]
+        then
+            error="$(echo $(cat "$e2c_log"))"
+            [[ -n ${error} ]] && e2c_error "$error\n"
+        fi
+    fi
+
+    exit ${e2c_res}
+}
+
+e2c_share_help() {
+    echo -e "
+\033[1;33mInformation:\033[0m
+  Start share session over ngrok secure tunnels. Command accepts optional
+  parameter to specify a region. Ex. \`e2c share eu\`. Available regions are
+  \`us\`, \`eu\`, \`ap\`, \`au\`, \`sa\`, \`jp\`, \`in\`. By default region is \`us\`.
+  For proper functioning of this command, required dependencies will be
+  installed. Please, visit https://github.com/shkoliar/magento-ngrok and
+  https://github.com/shkoliar/docker-ngrok for more information.
+
+\033[1;33mUsage:\033[0m
+  e2c share [region] [--help]
+
+\033[1;33mRegions:\033[0m
+  us        United States.
+  eu        Europe.
+  ap        Asia/Pacific.
+  au        Australia.
+  sa        South America.
+  jp        Japan.
+  in        India.
+
+\033[1;33mFlags:\033[0m
+  --help    Display this information.
+"
+    exit 0
+}
+
+e2c_sign() {
+    local e2c_ssl_dir="$e2c_global_dir"/ssl
+    local e2c_domains=($@)
+    local e2c_alt_names=
+    local e2c_dns_index=$(echo "$(cat "$e2c_ssl_dir"/config/v3_ext.conf | grep 'DNS.*' | awk 'END { print NR }')")
+    local e2c_dns_index=${e2c_dns_index:-0}
+
+    if [[ "$e2c_dns_index" == "0" ]]
+    then
+        e2c_log="$e2c_global_dir"/log
+    fi
+
+    for i in "${!e2c_domains[@]}"
+    do
+        if grep -q "*.${e2c_domains[$i]}" "$e2c_ssl_dir"/config/v3_ext.conf
+        then
+            continue
+        fi
+
+        e2c_dns_index=$((e2c_dns_index + 1))
+        e2c_alt_names+="
+        DNS.$((e2c_dns_index)) = ${e2c_domains[$i]}"
+        e2c_dns_index=$((e2c_dns_index + 1))
+        e2c_alt_names+="
+        DNS.$((e2c_dns_index)) = *.${e2c_domains[$i]}"
+    done
+
+    e2c_info_bold "\n[Installing SSL certificate]\n\n"
+
+    if [[ -z ${e2c_alt_names} ]]
+    then
+        e2c_msg "Signing SSL certificate................................................  "
+        e2c_loading
+        e2c_result 0
+    else
+        echo "$(cat "$e2c_ssl_dir"/config/v3_ext.conf)$e2c_alt_names" > "$e2c_ssl_dir"/config/v3_ext.conf
+
+        e2c_msg "Generating private key for SSL certificate.............................  "
+        e2c_loading
+        [[ -f "$e2c_ssl_dir"/private/e2c.key ]] && rm -rf "$e2c_ssl_dir"/private/e2c.key
+        openssl genrsa -out "$e2c_ssl_dir"/private/e2c.key 2048 >"$e2c_log" 2>&1
+        e2c_result $?
+
+        e2c_msg "Creating signing request for SSL certificate...........................  "
+        e2c_loading
+        openssl req -new -sha256 \
+            -key "$e2c_ssl_dir"/private/e2c.key \
+            -out "$e2c_ssl_dir"/certs/e2c.csr \
+            -config "$e2c_ssl_dir"/config/openssl.conf \
+            -subj "/O=Emma2click/OU=IT/CN=${e2c_domains[0]}" >"$e2c_log" 2>&1
+        e2c_result $?
+
+        if [[ "$e2c_os" == "darwin" ]]
+        then
+            pass="e2c"
+        else
+            pass="e2c0"
+        fi
+
+        e2c_msg "Signing SSL certificate................................................  "
+        e2c_loading
+        openssl x509 -req -days 3650 -sha256 -extensions v3_req \
+            -CA "$e2c_ssl_dir"/certs/rootCA.crt \
+            -CAkey "$e2c_ssl_dir"/private/rootCA.key \
+            -CAcreateserial -passin pass:${pass} \
+            -in "$e2c_ssl_dir"/certs/e2c.csr \
+            -out "$e2c_ssl_dir"/certs/e2c.crt \
+            -extfile "$e2c_ssl_dir"/config/v3_ext.conf >"$e2c_log" 2>&1
+        e2c_result $?
+
+        if [[ -n "$(docker ps \
+                        --filter "label=com.docker.compose.project=e2c" \
+                        --filter "label=com.docker.compose.service=traefik" \
+                        -q)" ]]
+        then
+            e2c_global_restart traefik
+        fi
+    fi
+}
+
+e2c_sync() {
+    if [[ "$e2c_os" != "darwin" ]]
+    then
+        e2c_error "Unknown argument \`sync\`. Run \`e2c --help\` for usage information.\n"
+        exit 1
+    fi
+
+    local e2c_sync_sessions=("src" "vendor")
+    local e2c_sync_command=
+
+    if (("$#"))
+    then
+        e2c_in_array "--help" $@ && e2c_sync_help
+
+        while (("$#")); do
+            case "$1" in
+                start)
+                    e2c_sync_command="$1"
+                    shift
+                    e2c_sync_exec start
+                ;;
+                stop)
+                    e2c_sync_command="$1"
+                    shift
+                    e2c_sync_exec terminate
+                ;;
+                pause)
+                    e2c_sync_command="$1"
+                    shift
+                    e2c_sync_exec pause
+                ;;
+                resume)
+                    e2c_sync_command="$1"
+                    shift
+                    e2c_sync_exec resume
+                ;;
+                flush)
+                    e2c_sync_command="$1"
+                    shift
+
+                    if [[ -n $1 ]]
+                    then
+                        if e2c_in_array "$1" ${e2c_sync_sessions[@]}
+                        then
+                            e2c_sync_exec flush $1
+                            shift
+                        else
+                            e2c_sync_exec flush
+                        fi
+                    else
+                        e2c_sync_error "$1"
+                    fi
+                ;;
+                status)
+                    e2c_sync_command="$1"
+                    shift
+                    e2c_sync_exec list | awk '{if(NR>5)print}'
+                ;;
+                *)
+                    e2c_sync_error "$1"
+                ;;
+            esac
+        done
+    else
+        e2c_sync_help
+    fi
+}
+
+e2c_sync_error() {
+    e2c_error "Unknown argument \`$1\`. Run \`e2c sync --help\` for usage information.\n"
+    exit 1
+}
+
+e2c_sync_exec() {
+    local e2c_project_yml="$e2c_project_dir"/.e2c/mutagen/mutagen.yml
+    e2c_sync_yml_expand #TODO: check new mutagen versions, temporary fix for https://github.com/mutagen-io/mutagen/issues/128
+    e2c_mutagen project $@ ${e2c_project_yml}
+    e2c_sync_yml_restore #TODO: check new mutagen versions, temporary fix for https://github.com/mutagen-io/mutagen/issues/128
+}
+
+e2c_sync_yml_expand() {
+    local e2c_project_yml="$e2c_project_dir"/.e2c/mutagen/mutagen.yml
+    mv ${e2c_project_yml} ${e2c_project_yml}.bak
+    IFS=
+    echo "echo -e \"$(cat ${e2c_project_yml}.bak)\"" > ${e2c_project_yml}
+    echo -e $(source ${e2c_project_yml}) > ${e2c_project_yml}
+}
+
+e2c_sync_yml_restore() {
+    local e2c_project_yml="$e2c_project_dir"/.e2c/mutagen/mutagen.yml
+    rm ${e2c_project_yml}
+    mv ${e2c_project_yml}.bak ${e2c_project_yml}
+}
+
+e2c_sync_help() {
+    echo -e "
+\033[1;33mInformation:\033[0m
+  Controls the synchronization sessions between host and docker container.
+
+\033[1;33mUsage:\033[0m
+  e2c sync [command] [--help]
+
+\033[1;33mCommands:\033[0m
+  start     Start sync sessions.
+  stop      Stop sync sessions.
+  pause     Pause sync sessions.
+  resume    Resume paused sync sessions.
+  flush     Flush sync sessions.
+  status    Print sync sessions status.
+
+\033[1;33mFlags:\033[0m
+  --help    Display this information.
+"
+    exit 0
+}
+
+e2c_varnish() {
+    if [[ -z "$@" ]]; then
+        e2c_error "Please specify a varnish command. e.g. varnishstat\n"
+        return 1
+    fi
+
+    docker exec -i "${E2C_CFG_DOMAIN_NAME}__varnish" "$@"
+}
+
+e2c_varnish_configure() {
+    local version=${E2C_CFG_VARNISH:0:1} \
+          dir="$e2c_project_dir${E2C_CFG_MAGENTO_SRC:+/${E2C_CFG_MAGENTO_SRC}}"
+
+    (
+        e2c_magento notty config:set --scope=default --scope-code=0 \
+            system/full_page_cache/caching_application 2 && \
+        e2c_magento notty config:set --scope=default --scope-code=0 \
+            system/full_page_cache/varnish/access_list ${E2C_CFG_DOMAIN_NAME}__nginx && \
+        e2c_magento notty config:set --scope=default --scope-code=0 \
+            system/full_page_cache/varnish/backend_host ${E2C_CFG_DOMAIN_NAME}__nginx && \
+        e2c_magento notty config:set --scope=default --scope-code=0 \
+            system/full_page_cache/varnish/backend_port 8080 && \
+        e2c_magento notty config:set --scope=default --scope-code=0 \
+            system/full_page_cache/varnish/grace_period 300 && \
+        e2c_magento notty setup:config:set --http-cache-hosts=${E2C_CFG_DOMAIN_NAME}__varnish:80 && \
+        e2c_magento notty varnish:vcl:generate --access-list ${E2C_CFG_DOMAIN_NAME}__nginx \
+            --backend-host ${E2C_CFG_DOMAIN_NAME}__nginx \
+            --backend-port 8080 --export-version ${E2C_CFG_VARNISH:0:1} \
+            --output-file ./var/default.vcl
+    ) >"$e2c_log" 2>&1 && \
+    (
+        e2c_pull var/default.vcl >/dev/null 2>&1 && \
+        sed -e 's/pub\/health_check.php/health_check.php/g' "$dir/var/default.vcl" > "$dir/var/default.temp" && \
+        mv "$dir/var/default.temp" "$dir/var/default.vcl" && \
+        docker cp "$dir/var/default.vcl" "${E2C_CFG_DOMAIN_NAME}__varnish:/usr/local/share/"
+    ) >"$e2c_log" 2>&1 && \
+    (
+        e2c_varnish varnishadm vcl.load default /usr/local/share/default.vcl && \
+        e2c_varnish varnishadm vcl.use default
+    ) >"$e2c_log" 2>&1 && \
+    (
+        rm -rf "$dir/var/default.vcl" && \
+        e2c_cli notty rm -rf ./var/default.vcl
+    ) >"$e2c_log" 2>&1
+
+    return $?
+}
+
+e2c_varnish_reset() {
+    local version=${E2C_CFG_VARNISH:0:1} \
+          dir="$e2c_project_dir${E2C_CFG_MAGENTO_SRC:+/${E2C_CFG_MAGENTO_SRC}}"
+
+    (
+        e2c_magento notty config:set --scope=default --scope-code=0 \
+            system/full_page_cache/caching_application 1 && \
+        e2c_magento notty config:set --scope=default --scope-code=0 \
+            system/full_page_cache/varnish/access_list "" && \
+        e2c_magento notty config:set --scope=default --scope-code=0 \
+            system/full_page_cache/varnish/backend_host "" && \
+        e2c_magento notty config:set --scope=default --scope-code=0 \
+            system/full_page_cache/varnish/backend_port "" && \
+        e2c_magento notty config:set --scope=default --scope-code=0 \
+            system/full_page_cache/varnish/grace_period ""
+    ) >"$e2c_log" 2>&1
+
+    return $?
+}

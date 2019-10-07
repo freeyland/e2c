@@ -1,0 +1,26 @@
+version: "3.5"
+
+services:
+
+  nginx:
+    volumes:
+      - src_data:/var/www/html:ro
+      - sock_data:/sock
+
+  php:
+    volumes:
+      - ~/.composer:/var/www/.composer:delegated
+      - ~/.e2c/ssl/certs:/usr/share/ca-certificates/e2c:ro
+      - src_data:/var/www/html
+      - sock_data:/sock
+
+  xdebug:
+    volumes:
+      - ~/.composer:/var/www/.composer:delegated
+      - ~/.e2c/ssl/certs:/usr/share/ca-certificates/e2c:ro
+      - src_data:/var/www/html
+      - sock_data:/sock
+
+volumes:
+  src_data:
+  sock_data:

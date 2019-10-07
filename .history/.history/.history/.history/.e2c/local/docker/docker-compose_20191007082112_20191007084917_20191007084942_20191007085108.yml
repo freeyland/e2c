@@ -1,0 +1,61 @@
+version: "3.5"
+
+services:
+
+  php:
+    container_name: ${E2C_CFG_DOMAIN_NAME}__php
+    hostname: ${E2C_CFG_DOMAIN_NAME}__php
+    image: emma2click/e2c:php-fpm-${E2C_CFG_PHP:-7.2}-alpine
+    extra_hosts:
+      - ${E2C_CFG_DOMAIN_NAME}:${E2C_TRAEFIK_IP:-0.0.0.0}
+    depends_on:
+      - db
+    labels:
+      - e2c.project.path=${E2C_PROJECT_PATH}
+    networks:
+      - default
+      - e2c
+
+  xdebug:
+    container_name: ${E2C_CFG_DOMAIN_NAME}__xdebug
+    hostname: ${E2C_CFG_DOMAIN_NAME}__xdebug
+    image: emma2click/e2c:php-fpm-${E2C_CFG_PHP:-7.2}-xdebug-alpine
+    extra_hosts:
+      - ${E2C_CFG_DOMAIN_NAME}:${E2C_TRAEFIK_IP:-0.0.0.0}
+    environment:
+      - PHP_IDE_CONFIG=serverName=${E2C_CFG_DOMAIN_NAME}
+    depends_on:
+      - db
+    networks:
+      - default
+      - e2c
+
+  db:
+    container_name: ${E2C_CFG_DOMAIN_NAME}__db
+    hostname: ${E2C_CFG_DOMAIN_NAME}__db
+    image: mariadb:${E2C_CFG_MARIADB:-10.3}
+    environment:
+      - MYSQL_ROOT_PASSWORD=${E2C_CFG_MYSQL_ROOT_PASSWORD:-magento}
+      - MYSQL_DATABASE=${E2C_CFG_MYSQL_DATABASE:-magento}
+      - MYSQL_USER=${E2C_CFG_MYSQL_USER:-magento}
+      - MYSQL_PASSWORD=${E2C_CFG_MYSQL_PASSWORD:-magento}
+    volumes:
+      - ./../mysql/custom.cnf:/etc/mysql/conf.d/custom.cnf:ro
+      - db_data:/var/lib/mysql
+    networks:
+      - default
+
+  redis:
+    container_name: ${E2C_CFG_DOMAIN_NAME}__redis
+    hostname: ${E2C_CFG_DOMAIN_NAME}__redis
+    image: redis:${E2C_CFG_REDIS:-5.0}-alpine
+    volumes:
+      - redis_data:/data
+
+volumes:
+  db_data:
+  redis_data:
+
+networks:
+  e2c:
+    external: true
