@@ -32,7 +32,7 @@ This configuration has been tested on macOS. Linux based systems still require t
 To install Emma2click toolset to your system, simply run command below.
 
 ```bash
-curl -sL https://gitlab.studioemma.com/SEINTD/e2c/raw/master/get | bash
+curl -sL https://raw.githubusercontent.com/freeyland/e2c/master/get | bash
 ```
 
 Or shortened version of above.
