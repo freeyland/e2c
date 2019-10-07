@@ -265,8 +265,7 @@ e2c_db_shell() {
     else
         e2c_tty=1
     fi
-
-    docker exec -u app -${e2c_tty:+t}i "${E2C_CFG_DOMAIN_NAME}__db" /bin/sh "$@"
+      docker exec -u app -${e2c_tty:+t}i "${E2C_CFG_DOMAIN_NAME}__db" /bin/sh "$@"
 }
 
 e2c_db_mysqldump() {
@@ -360,6 +359,7 @@ e2c_db_help() {
   mysql     Run mysql CLI command or open mysql command prompt.
   export    Export magento database to gzip compressed sql dump.
   import    Import plain sql or gzipped sql database dump file.
+  shell     Go inside container shell.
 
 \033[1;33mFlags:\033[0m
   --help    Display this information.
@@ -784,6 +784,8 @@ e2c_help() {
   cli           Run any cli command without going into the bash prompt.
   composer      Run composer specific commands.
   db            Database related commands.
+  down          TO be used inside a project directory to bring down all containers and remove them.
+  global        Run global commands.
   grunt         Run grunt specific commands.
   info          Print project info and status.
   init          Initialize project in the current directory.
@@ -805,7 +807,9 @@ e2c_help() {
 
 \033[1;33mFlags:\033[0m
   --help        Display this information. To get information about the specific
-                command, use with corresponding command name.
+                command, use with corresponding command name. 
+
+e.g.: e2c global --help
 "
     else
     echo -e "
