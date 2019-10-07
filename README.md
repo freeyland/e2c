@@ -35,12 +35,6 @@ To install Emma2click toolset to your system, simply run command below.
 curl -sL https://raw.githubusercontent.com/freeyland/e2c/master/get | bash
 ```
 
-Or shortened version of above.
-
-```bash
-curl -sL get.e2c.run | bash
-```
-
 ## What is included
 
 ### Global system-wide services 
