@@ -1803,7 +1803,7 @@ e2c_local_remove() {
 
 
 e2c_local_logs() {
-    docker logs  "${E2C_CFG_DOMAIN_NAME}__$@"
+    docker logs --folow "${E2C_CFG_DOMAIN_NAME}__$@"
 }
 
 e2c_local_update() {
