@@ -1574,6 +1574,9 @@ e2c_local() {
         info|status)
             e2c_local_info
         ;;
+        logs)
+            e2c_local_logs "$@"
+        ;;
         remove)
             shift
             e2c_local_remove "$@"
@@ -1796,6 +1799,11 @@ e2c_local_remove() {
         e2c_save_project_env
         e2c_local up
     fi
+}
+
+
+e2c_local_logs() {
+    docker logs  "${E2C_CFG_DOMAIN_NAME}__$@"
 }
 
 e2c_local_update() {
