@@ -11,6 +11,8 @@ services:
       - db
     labels:
       - e2c.project.path=${E2C_PROJECT_PATH}
+    volumes:
+      - $HOME/.composer/auth.json:/auth.json
     networks:
       - default
       - e2c
