@@ -512,7 +512,7 @@ else
             e2c_local_project_check_dir
             e2c_local $@
             ;;
-        add | down | info | remove | restart | start | status | stop | update)
+        add | down | logs | info | remove | restart | start | status | stop | update)
             e2c_local_project_check
             e2c_local $@
             ;;
