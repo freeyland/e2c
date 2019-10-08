@@ -784,11 +784,12 @@ e2c_help() {
   cli           Run any cli command without going into the bash prompt.
   composer      Run composer specific commands.
   db            Database related commands.
-  down          TO be used inside a project directory to bring down all containers and remove them.
+  down          To be used inside a project directory to bring down all containers and remove them.
   global        Run global commands.
   grunt         Run grunt specific commands.
   info          Print project info and status.
   init          Initialize project in the current directory.
+  logs          View the logs of a specific container.
   magento, m    Run bin/magento specific commands.
   magerun, mr   Run n98-magerun specific commands.
   node          Run node specific commands.
@@ -822,16 +823,16 @@ e.g.: e2c global --help
   cli           Run any cli command without going into the bash prompt.
   composer      Run composer specific commands.
   db            Database related commands.
+  down          To be used inside a project directory to bring down all containers and remove them.
+  global        Run global commands.
   grunt         Run grunt specific commands.
   info          Print project info and status.
   init          Initialize project in the current directory.
+  logs          View the logs of a specific container.
   magento, m    Run bin/magento specific commands.
   magerun, mr   Run n98-magerun specific commands.
-  mutagen       Run mutagen.io sync related commands.
   node          Run node specific commands.
   npm           Run npm specific commands.
-  push          Push specified file or directory to docker container.
-  pull          Pull specified file or directory from docker container.
   redis         Run redis specific commands.
   remove        Remove optional service from project.
   restart       Restart running docker services and starts all stopped ones.
@@ -840,7 +841,6 @@ e.g.: e2c global --help
   start         Start all stopped docker services.
   status        Print project info and status.
   stop          Stop all running docker services.
-  sync          Control mutagen.io files sync with docker containers.
   update        Update docker configuration to latest version.
   urn           Generate URN for PHPStorm and remap paths for the host.
   varnish       Run varnish specific commands.
