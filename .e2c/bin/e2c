@@ -1,6 +1,6 @@
 #!/bin/bash
 
-declare -r e2c_version="0.2.17"
+declare -r e2c_version="0.2.18"
 declare -r e2c_os="$(uname -s | awk '{print tolower($0)}')"
 declare -r e2c_global_dir="$(echo ~/.e2c)"
 declare e2c_loading_pid=

@@ -1,4 +1,11 @@
 [mysqld]
 
-max_allowed_packet = 1024M
+sql_mode=NO_ENGINE_SUBSTITUTION,STRICT_TRANS_TABLES
+auto_increment_increment = 3
+table_open_cache = 250
 wait_timeout = 28800
+reconnect = 1
+max_allowed_packet=4000M
+innodb_file_per_table = off
+innodb-log-file-size = 2047M
+innodb-log-buffer-size = 32M
