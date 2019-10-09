@@ -48,7 +48,7 @@ e2c_load_project_env() {
         --filter "label=com.docker.compose.project=e2c" \
         --filter "label=com.docker.compose.service=traefik" \
         -qa | xargs docker inspect \
-        --format="{{index .NetworkSettings.Networks.m2c.IPAddress}}")"
+        --format="{{index .NetworkSettings.Networks.e2c.IPAddress}}")"
 }
 
 e2c_load_project_defaults_env() {
