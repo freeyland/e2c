@@ -1,753 +1,0 @@
-#!/bin/bash
-
-declare -r e2c_version="0.2.18"
-declare -r e2c_os="$(uname -s | awk '{print tolower($0)}')"
-declare -r e2c_global_dir="$(echo ~/.m2c)"
-declare e2c_loading_pid=
-
-e2c_logo() {
-    local logo='
-                  #######################################
-                  #######################################
-                  #######################################
-                  #######################################
-                  #######################################
-                  #######################################
-                  #########         #####         #######
-                  #######    ####(  ###    ####    ######
-                  #######    #########    #####    ######
-                  ########       #####   **      .#######
-                  ///////////       //        ///////////
-                  ///////////////    /    ///////////////
-                  ///////  .////    ///    .////  ///////
-                  ///////          /////          *//////
-                  ///////////////////////////////////////
-                  ///////////////////////////////////////
-                  ///////////////////////////////////////
-                  ///////////////////////////////////////
-                  ///////////////////////////////////////
-    '
-
-    echo -e "\033[1;33m$logo
-                                Emma2click
-                              Docker Magento
-                          environment and toolset
-                                  v$e2c_version
-\033[0m"
-}
-
-e2c_loading() {
-    tput civis
-    e2c_start_spinner &
-    e2c_loading_pid=$!
-    sleep 0.1
-}
-
-e2c_start_spinner() {
-    local sp=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
-    #local sp=('/' '—' '\' '|')
-    #local sp=('◐' '◓' '◑' '◒')
-    #local sp=('◢' '◣' '◤' '◥')
-
-    printf "\033[1;33m"
-
-    while [[ "$(ps a | awk '{print $1}' | grep $$)" ]]; do
-        for i in "${sp[@]}"; do
-            echo -en "\b$i"
-            sleep 0.1
-        done
-    done
-}
-
-e2c_stop_spinner() {
-    if [[ -n ${e2c_loading_pid} ]]; then
-        kill ${e2c_loading_pid}
-        wait ${e2c_loading_pid} >/dev/null 2>&1
-        e2c_loading_pid=
-    fi
-
-    printf "\b\033[0m"
-}
-
-e2c_trim() {
-    local var="$*"
-    var="${var#"${var%%[![:space:]]*}"}"
-    var="${var%"${var##*[![:space:]]}"}"
-    echo -n "$var"
-}
-
-e2c_msg() {
-    echo -en "\033[0;32m$@\033[0m"
-}
-
-e2c_info() {
-    echo -en "\033[0;33m$@\033[0m"
-}
-
-e2c_info_bold() {
-    echo -en "\033[1;33m$@\033[0m"
-}
-
-e2c_error() {
-    echo -en "\033[0;31m$@\033[0m"
-}
-
-e2c_error_bold() {
-    echo -en "\033[1;31m$@\033[0m"
-}
-
-e2c_result() {
-    local res=$1 \
-        noexit=$2 \
-        error
-
-    e2c_stop_spinner >/dev/null 2>&1
-    tput cnorm
-
-    if [[ $1 -eq 0 ]]; then
-        e2c_info_bold "\b✔\n"
-    else
-        e2c_error_bold "\b✘\n"
-
-        if [[ -f "$e2c_log" ]]; then
-            error="$(echo $(cat "$e2c_log"))"
-            [[ -n ${error} ]] && e2c_error "$error\n"
-        fi
-
-        [[ -z ${noexit} ]] && exit 1
-    fi
-}
-
-e2c_ask_bool() {
-    local message=$(e2c_msg "$1") \
-    only_y=$2 \
-    opts \
-    res
-
-    tput cnorm
-    stty echo
-
-    if [[ -z ${only_y} ]]; then
-        opts="[Y/n]"
-    else
-        opts="[Y]"
-    fi
-
-    while :; do
-        read -n 1 -srp "$(e2c_msg "$message $(e2c_info_bold "$opts")") " res
-        e2c_erase_current_line
-        if [[ "$res" == "Y" || "$res" == "y" ]]; then
-            e2c_msg "$message $(e2c_info_bold "[$res]")\n"
-            res=1
-            break
-        elif [[ -z ${only_y} ]] && [[ "$res" == "N" || "$res" == "n" ]]; then
-            e2c_msg "$message $(e2c_info_bold "[$res]")\n"
-            res=
-            break
-        fi
-    done
-
-    e2c_res=${res}
-
-    stty -echo
-    tput civis
-}
-
-e2c_ask_text() {
-    local message=$1 \
-        default=$2 \
-        error=$3 \
-        error_info=$4 \
-        validate=$5 \
-        validate_value=() \
-        res valid error_count res_count valid=1
-
-    shift
-    shift
-    shift
-    shift
-    shift
-
-    validate_value=("$@")
-
-    tput cnorm
-    stty echo
-
-    temp_term=${TERM}
-    TERM=vt100
-
-    while [[ -z ${res} || -z ${valid} ]]; do
-        valid=
-        error_count=0
-
-        exec 5>&1
-
-        message=$(e2c_msg "$message")
-
-        if [[ -n ${default} ]]; then
-            echo -e "$message $(e2c_info_bold "[$default]")"
-        else
-            echo -e "$message"
-        fi
-
-        if [[ -n ${res} && -z ${valid} ]]; then
-            error_count="$(echo -en "$(
-                e2c_error "$(printf "$error" "$res")\n"
-                [[ -n ${error_info} ]] && e2c_error "$error_info"
-            )" | tee >(cat - >&5))"
-            error_count="$(echo -en "$error_count" | awk 'END { print NR }')"
-        fi
-
-        res="$(read -er 2>&1 | tee >(cat - >&5) | tr -d '\r')"
-        res_count=$(echo "$res" | awk 'END { print NR }')
-
-        [[ ${error_count} -eq 0 ]] && ((res_count++))
-
-        while IFS= read line; do
-            res="$line"
-        done < <(printf '%s\n' "$res")
-
-        e2c_erase_prev_lines $(((res_count + error_count)))
-
-        res=$(e2c_trim "$res" | tr -dc '[:print:]')
-
-        if [[ -z ${res} ]]; then
-            res="$default"
-        fi
-
-        if ${validate} "$res" "${validate_value[@]}"; then
-            valid=1
-            e2c_res="$res"
-        fi
-    done
-
-    TERM=${temp_term}
-
-    exec 5>&-
-
-    echo -e "$message $(e2c_info_bold "[$res]")"
-
-    stty -echo
-    tput civis
-}
-
-e2c_erase_current_line() {
-    echo -ne "\033[999D\033[K\033[999D"
-}
-
-e2c_erase_prev_lines() {
-    local count=${1:-1}
-
-    while ((count > 0)); do
-        tput cuu 1 && tput el
-        ((count--))
-    done
-}
-
-e2c_in_array() {
-    local entry match="$1"
-    shift
-    for entry; do
-        [[ "$entry" == "$match" ]] && return 0
-    done
-    return 1
-}
-
-e2c_requirements() {
-    local test pass=1
-
-    e2c_info_bold "\n[Checking requirements]\n\n"
-
-    e2c_msg "OS compatibility check.................................................  "
-    e2c_loading
-
-    case ${e2c_os} in
-    darwin | linux)
-        e2c_result 0
-        ;;
-    *)
-        echo "Currently we are not supporting $e2c_os based OS yet." >"$e2c_log"
-        e2c_result 1 1
-        pass=0
-        ;;
-    esac
-
-    e2c_msg "Docker installation check..............................................  "
-    e2c_loading
-    hash docker 2>/dev/null
-    test=$?
-
-    [[ "$test" == "1" ]] && echo "Docker command line interface was not found." >"$e2c_log"
-
-    e2c_result ${test} 1
-
-    [[ ${test} -eq 0 ]] || pass=0
-
-    e2c_msg "Docker-compose installation check......................................  "
-    e2c_loading
-    hash docker-compose 2>/dev/null
-    test=$?
-
-    [[ "$test" == "1" ]] && echo "Docker-compose command line interface was not found." >"$e2c_log"
-
-    e2c_result ${test} 1
-
-    [[ ${test} -eq 0 ]] || pass=0
-
-    test=0
-    e2c_msg "Ports 80 and 443 availability check....................................  "
-    e2c_loading
-
-    if [[ -z "$(docker ps \
-        --filter "label=com.docker.compose.project=e2c" \
-        --filter "label=com.docker.compose.service=traefik" \
-        -q)" ]]; then
-        if lsof -PiTCP:80 -sTCP:LISTEN -t >/dev/null 2>&1; then
-            echo "Port 80 is already used by some other service." >"$e2c_log"
-            test=1
-        fi
-
-        if lsof -PiTCP:443 -sTCP:LISTEN -t >/dev/null 2>&1; then
-            echo "Port 443 is already used by some other service." >"$e2c_log"
-            test=1
-        fi
-    fi
-    e2c_result ${test} 1
-
-    [[ ${test} -eq 0 ]] || pass=0
-
-    if [[ ${pass} -eq 0 ]]; then
-        exit 1
-    fi
-}
-
-e2c_install() {
-    local archive test
-
-    e2c_info_bold "\n[Installing commands]\n\n"
-
-    e2c_msg "Locating archive.......................................................  "
-    e2c_loading
-    archive=$(awk '/^__ARCHIVED__/ {print NR + 1; exit 0; }' "${0}")
-    test=$?
-    e2c_result ${test}
-
-    e2c_msg "Extracting data........................................................  "
-    e2c_loading 2
-    tail -n+${archive} "${0}" | tar -xzp -C ~ && >"$e2c_log" 2>&1
-    test=$?
-    if [[ "$test" == "0" ]]; then
-        ln -sf "$m2c_global_dir"/bin/m2c /usr/local/bin/e2c
-        if [[ ! -f "$m2c_global_dir"/ssl/config/v3_ext.conf ]]; then
-            mv "$m2c_global_dir"/ssl/config/v3_ext.blank.conf "$m2c_global_dir"/ssl/config/v3_ext.conf
-        else
-            rm -f "$m2c_global_dir"/ssl/config/v3_ext.blank.conf
-        fi
-    fi
-    m2c_result ${test}
-
-    case ${m2c_os} in
-    darwin)
-        if [[ ! -f "$m2c_global_dir"/mutagen/mutagen || "$(echo "$("$m2c_global_dir"/mutagen/mutagen version)")" != "0.10.0" ]]; then
-            m2c_info_bold "\n[Installing Mutagen for docker sync performance]\n\n"
-            mkdir -p "$m2c_global_dir"/mutagen >"$m2c_log" 2>&1
-            curl -L \
-                "https://github.com/mutagen-io/mutagen/releases/download/v0.10.0/mutagen_darwin_amd64_v0.10.0.tar.gz" |
-                tar xzf - -o -C "$m2c_global_dir"/mutagen/
-            chmod 0755 "$m2c_global_dir"/mutagen/mutagen
-        fi
-        ;;
-    esac
-
-    if [[ ! -f "$m2c_global_dir"/ssl/certs/rootCA.crt ]] || [[ ! -f "$m2c_global_dir"/ssl/private/rootCA.key ]]; then
-        m2c_info_bold "\n[Installing CA certificate]\n\n"
-
-        if [[ "$m2c_os" == "darwin" ]]; then
-            pass="m2c"
-        else
-            pass="m2c0"
-        fi
-
-        m2c_msg "Generating private key for CA certificate..............................  "
-        m2c_loading
-        mkdir -p "$m2c_global_dir"/ssl/{certs,crl,new,private,serial} >"$m2c_log" 2>&1 &&
-            openssl genrsa -aes256 -passout pass:${pass} -out "$m2c_global_dir"/ssl/private/rootCA.key 4096 >"$m2c_log" 2>&1
-        test=$?
-        m2c_result ${test}
-
-        m2c_msg "Signing CA certificate.................................................  "
-        m2c_loading
-        openssl req -new -x509 -nodes -sha256 -days 3650 \
-            -passin pass:${pass} -subj "/O=Emma2click/OU=IT/CN=m2c.local" \
-            -config "$m2c_global_dir"/ssl/config/rootca.conf \
-            -key "$m2c_global_dir"/ssl/private/rootCA.key \
-            -out "$m2c_global_dir"/ssl/certs/rootCA.crt >"$m2c_log" 2>&1
-        test=$?
-        m2c_result ${test}
-
-        m2c_msg "Password is required to trust CA certificate...........................  "
-        m2c_loading
-        m2c_result 0
-        tput cnorm
-        while ! sudo -p "$(printf "\033[0mPassword:")$(printf "\033[1;31m%s" " ")" true; do
-            exit 1
-        done
-        tput civis
-        m2c_erase_prev_lines 1
-
-        m2c_msg "Trusting root CA certificate ..........................................  "
-        m2c_loading
-        case "$m2c_os" in
-        darwin)
-            sudo security delete-certificate -c 'm2c.local' >/dev/null 2>&1
-            sudo security add-trusted-cert -d -r trustRoot \
-                -k /Library/Keychains/System.keychain "$m2c_global_dir"/ssl/certs/rootCA.crt >"$m2c_log" 2>&1
-            test=$?
-            ;;
-        linux)
-            if [[ -d /usr/local/share/ca-certificates ]] && [[ ! -f /usr/local/share/ca-certificates/m2c-root-ca.crt ]]; then
-                yes | sudo cp -rf "$m2c_global_dir"/ssl/certs/rootCA.crt \
-                    /usr/local/share/ca-certificates/m2c-root-ca.crt >"$m2c_log" 2>&1 &&
-                    sudo update-ca-certificates
-                test=$?
-            elif [[ -d /etc/pki/ca-trust/source/anchors ]] && [[ ! -f /etc/pki/ca-trust/source/anchors/m2c-root-ca.crt ]]; then
-                yes | sudo cp -rf "$m2c_global_dir"/ssl/certs/rootCA.crt \
-                    /etc/pki/ca-trust/source/anchors/m2c-root-ca.crt >"$m2c_log" 2>&1 &&
-                    sudo update-ca-trust && sudo update-ca-trust enable
-                test=$?
-            else
-                echo "Currently we are not supporting $m2c_os based OS yet." >"$m2c_log"
-                test=1
-            fi
-            ;;
-        esac
-        m2c_result ${test}
-    fi
-}
-
-m2c_on_exit() {
-    m2c_stop_spinner
-    stty echo
-    tput cnorm
-    echo
-
-    if [[ "$(basename "$(test -L "$0" && readlink "$0" || echo "$0")")" != "m2c" ]]; then
-        rm -- "$0"
-    fi
-}
-
-trap m2c_on_exit EXIT
-
-m2c_log="$m2c_global_dir"/log
-touch "$m2c_log"
-
-if [[ "$0" != "/usr/local/bin/e2c" ]]; then
-    m2c_logo
-
-    if [[ ! -f "$m2c_global_dir"/build ]]; then
-        message="Install Emma2click Docker Magento environment and toolset to your system?"
-    else
-        m2c_is_update=1
-        m2c_res="$(e2c --version 2>/dev/null | tr -dc '[:print:]' | sed 's/\[0m\[?12l\[?25h//')"
-
-        if [[ "$m2c_res" == "$m2c_version" ]]; then
-            message="Hooray! You have the latest version of Emma2click toolset. Reinstall?"
-        else
-            message="Emma2click toolset v$m2c_res is found on your system. Update it to v$m2c_version?"
-        fi
-    fi
-
-    m2c_ask_bool "$(echo -n "$message")"
-
-    if [[ -z ${m2c_res} ]]; then
-        exit 0
-    fi
-
-    m2c_requirements
-    rm -rf "$m2c_global_dir"/{bin,completions,dnsmasq,docker,functions,local,traefik,www,build} >/dev/null 2>&1
-    m2c_install
-    . "$m2c_global_dir"/functions/m2c
-    m2c_sign "m2c.test"
-    m2c_global up
-
-    m2c_info_bold "\n[Installation finished]\n\n"
-    m2c_msg "Emma2click toolset is successfully installed! \n\nRun \`m2c --help\` command for usage information. \nVisit local https://m2c.test to check useful links to included services.\n\n"
-
-    if [[ -z ${m2c_is_update} ]]; then
-        m2c_ask_bool "Initialize new project in the current directory?"
-
-        if [[ -n ${m2c_res} ]]; then
-            m2c_init
-        fi
-    fi
-else
-    . "$m2c_global_dir"/functions/m2c
-    declare -r m2c_project_dir="$(m2c_get_project_dir)"
-    m2c_log="$m2c_project_dir"/.m2c/log
-    m2c_load_project_env
-
-    case "$1" in
-    global)
-        shift
-        m2c_log="$m2c_global_dir"/log
-        m2c_global $@
-        ;;
-    init)
-        shift
-        m2c_init $@
-        ;;
-    sign)
-        shift
-        m2c_sign $@
-        ;;
-    --version)
-        echo -n "$m2c_version"
-        ;;
-    --help)
-        m2c_help
-        ;;
-    *)
-        case "$1" in
-        up)
-            m2c_local_project_check_dir
-            m2c_local $@
-            ;;
-        add | down | logs | info | remove | restart | start | status | stop | update)
-            m2c_local_project_check
-            m2c_local $@
-            ;;
-        bash | cli | composer | db | grunt | magento | m | magerun | mr | mutagen | node | npm | pull | push | redis | share | sync | varnish | urn)
-            m2c_local_active_project_check
-
-            m2c_res=$1
-            shift
-
-            if [[ "$m2c_res" == "m" ]]; then
-                m2c_res="magento"
-            elif [[ "$m2c_res" == "mr" ]]; then
-                m2c_res="magerun"
-            fi
-
-            [[ $(type -t m2c_${m2c_res}) == "function" ]] && m2c_${m2c_res} $@
-            ;;
-        *)
-            if [[ "$1" != "" ]]; then
-                m2c_error "Unknown argument \`$@\`. Run \`m2c --help\` for usage information.\n"
-                exit 1
-            else
-                m2c_help
-            fi
-            ;;
-        esac
-        ;;
-    esac
-fi
-
-
-exit 0
-
-__ARCHIVED__
-� #ϝ] ���r9�(8��_�XM�Jy答�bQT�ukR�I�
-f�heFdED�b�;Og�a�����l�����k�_�_��K ���U�ͨ38��� ��Q�_����4��n����*}6Z�)�lw;��n��n�F���n��~f��$�*G�?����$d;:�G�C}�N�?I�����v�ݾ���x��Q��6X��;�F��o��?����_k�;�f�gm���o��?;;�-��.��w�+��0�{�Q�����w����$�A&�������Z{���o����$>_@��NgZ��x�7ګ�5���:0�����;������������4������� �0���w��V���������N�q�����/>�~Nk�Ϭ������յ���+�}�{�Σ	D�r�μ0e�
-X������z�'��X�E1��s�'~\�ώ�����i��,H���'�(�F,=	�Â0I�J����Fg����,A��ȇ�1�[	#�WY����h2x:�b���ȗ�+���t��g�kb���x�+t_|뭻����q;Xpk0 ��<@����"��r�}�x!�}ż� pM��w�������x(�	���I��@�~B�<F�o(u�r<܊ ثS�z��ƛt��o����M����5���5�����ou�q7�o��G�d��i|�*
-B�=��z����CF�I�}����r��0��v1&�q�c���FR,] t���=��^c1^�
-~����icF�c�v�
-�^i�ÄWo��ݾ��Q��`н��1�)
-/��!n�abR�����*r~���qp
-�(+��~��.<9����:����js���V��U�����������=��9���J%8����_��'`���at�
-`�^24QӐ�D��Y�]��~������9>���g�f;���!L��&K��,9�&������$�W\���ƈ�(�c��f�(�T~�&'f�ة�Arr��9�mo��u[UV���j-��zI�ߋ�F�Uwʬ�k�w��v�o����o��6�o��މ�>��d�@v	d�@rT�����i��i��)�;��t���65�M��	�6�l�6�l����A����]����,d+�a~z0���@�#����'��T"֟�1Hj|ӫ.����j�ރF�x�s�XuI�Y�w�]?<��?�s��^��۴��:��
-��D�� W���q}�����p�Z����8�V��f\%|M�0���B&b]r2'ީ��$��t��_@�0��%Er*�9�UYB0}�b�#��To#_������j����)�`Ǳ?f�����>�~���2{��+�6���
-7MH�b�譒�W�S?��z��y6�f��Gqʰ}��^�����W[�,bY-�����t������8�l�h��q`��Bju����:���.E��zP[u���F	�~O,�ҿx�u��8a/X?����(yi���S ��G��ӳ(���W����`������wyY���](��<�Mjb�sn���w�@��P���1�O�-5
-�
-a��o.2�^��'W�(pv4�-���ʷ�o=��-�_��{�e$�s��>5�6/�L�o߹��q-�T[�YY9��I��6�Hko����/���\���ć9�ƿ��|D$'�QJ�x��a^Z��I|�
-��t��d5@ zW����߽'�&�RH�EC�
-S�?9�o��:9>s�4��c/=Y�6�D�Wd�w�kԾ�?w@S;�G��ڹe��
-�T����ą~�zKo铜v�m����������q��ټ��(� ��wSb�jfz.$�&�j'�Gc�'�������k0X�y���Ѫ��q�9��Z�Q����w�n��<V�p����h�5�dT|����[�w.̾�5���J��J
-���ťo��2�O�]8:O~����Z]�܀�A4N�>�#5���2m��D*���7[���4���pN�6�_�� �#PvwC�l����d2F��q��滰��}����
- �
-Z]�tO�R<S�4�� �%'�P������wi�Ⱥ��V��5k��W��z=�A��ҙ	�D�W�5L�H����1eUPI���簤eB�ش��`��,yK�����f�`�{
-�!+�7T��U��V}�Y_t�|�}���΋�/���:#�7�d@^���X���/�y�W?�*)of~�Ł����&��n=�~�=$% �v�����gn�(�筽��?���ˌP�ܜ�,Z�?�SY˶��~���?M�'^?��'�P(��uY��p�UI��WJX^��5��
-eS�SڦX2�b
-F̙0o��QA�ͯ�� �}~���Ŝl ں~-@��f��X��k�Ĝ7���D	o����pTւQr��|D^0 h �Ǔ�� O�p r����M�P����x����� �J�"�~F�Fh���c��$f����g�/<�n5�"�}�s��j�fG>܎s��*K�ɕ��� �*���MC�$Tl�1nv�������^���.
-��̄�P[X4/���6��a(��4 ����TV�&}ɏ ٝ�[g�_v��;n�U�Ek����!�꒚s��ӳ�7�;{U��鯶��������'[������1Ŵd��$е�C)9!-{y0�g=�(�jo�1�[ՠ����4ґAߔS
-���h8�)��.�F�Z�S���]��d��`���n+Ş|��w�)Ar�Q0��|�+��=�v�k0^��D_B���M�sbNsR���	���ƪ�hBP�� ��'!�Ȝ���}[��֋z��t��^��[Ϟ����ϖ������/v�޲�z����>x��݃:��\
-٘�h��,�|iP`q!ki�j���Ef���7E���[J$����O��XL[9�2�Bg��Zz���z��'��[�d��P6��%���W�_����M��Vh�e�j��A���+4�m/��x���o�x̈[8�Q |���MF�yOy�3���O�����X����Y������V�ʅ�+�1T'�����6���]ZAk	�����W?~�����(�ǿjFs���8e������Y�AM�AT�f	5�c�K�����?LCE�eU�Hа	��0=�^
-,��_&A�CA@ܼ�����]�u�)���t���h��&�Fg!���	�*}���w�~v��$�>�gh��>��M�;�'����I��Z,�jU�a*�<L{��A��Z /�Yꜷ��+΄�����0�!
-���3�
-��S���`޳��Y��Bۢ��	�	���lW-��$�ؗod*���8u+jK� )�T��;u��i���� Ģ�I�؅�(��X�R~�p�9 -����Ko
-�=z�:8���� ����Qe�*4$�-d��-�Ŏs���.�֋$��Ib�A5�G��֞Bڕ�l�'!���}���a->F�Z^�^�
-��\�k%�9ܣ@�N�5���
-UqL���U������:��ʌ|��{#?�$M<��+�)5�d��������Ѹh�U�T0��ݞ�O��!E�A�A�Aߋ��s�)H�uoe�Y^`a<-6K�b(������';�%��O��M�-�Z��?Y�o��|�eL��1F^�ї6����1�p�_�n���$ė3��\׬I���u�|�nW�H3�]�~%���f@2�؟1&�Ŕ���qWS��$��$�B�*��)�����Xo�Xj4⭤�����j.�[�Ԓ���x��n!�K�~-.�|��˦U���p���P1Yu2�-�6�3UɒP-ӄ]U��K+bb���k�ک�jRe�����8Q�+�>Q6�`���� �T���Y0ʅB���������pbR��4���a��<�?������#��(/bؠ���D��Џ�X��܏|Zf������t�w�Ғ�&�@�xS��s������{��ﺟ�����Өm]i0G��ﺓI��{�ai�04T�U�>��̫
-�f@I�j-�Uq� ��z	A]=XVW��8�>C�	��S�zyi0'a����#�u���.����K�he��~Y��|ie8��A!���W0�*�}���2(C��Ȃ����$��l9�A����}ry����4���w)&��P|�'���
-b�V�z�Z�pP���'ͥ(�����o��۔U�f咽�m�W�th�N�:䟧�5{9���|g�]�]���rM�/8R��TW������xt�
-F�VȺ�̱���Ϸ0��e���ȏG�km�8s1W[���s5�8Wy�-2��~��]͹�%Ow�l�$
-3�19�N����oA��`0eB�=B���Zq4�hש��N#�
-J��=�NNˑ��^�N�$�)��]��$�o_�/&�s۸�f��M�max�/zgg�!Q)��EaoYd�(�P:n)`*���yB��LCY��niU��і�AӐ��AY�wu���4���F���V��]X�V���r"����ex:�d��ܽh�!�?�R_^e*[ݽ��r'/�����#C5e���0�>�e
-�s:N�ɣ:�w����p�&$��(@뙥�� �$�/�B�G���`s�?lGw&N�X��$d�"�?�В$�X�5�o�'�h�Ѝ����ŭ�W�{�$�ܚ��\TS��M���k�C�:i�`��c��W�V�HG�s:A�g�QK��Na��Ԥ����r�;��o0��c�ǭi5߳�fۂ���@�i��p2�K�?�	O��
-�+	
-��	^}P����BN��˞{|�L��鉗��o�C��7CU�H\�&�c3��ǻ���W��
-0ӈ	���PYB�M�n�@^�;ă/UEn�M�t&ґc9����K��5��b5F��6�n�؀��78�CFF��J�f`P=2I�pt�T�mN9'%Y�V	|r��,˯4�x;Y��;-�7���ko�)�������QAA���b\њ���3�
-mgI��C�i<1�"-�#�M1/�ss �f�g�P�]} �
-I�6�
-d�t��<�D����Oa��
-�'�tB�WG����Q� ҽ��O��Uf��v�ӊ ��8��_��TBM_Ҟ-ηL=��9x$�<foEQ���1�������i�оO��#&7�O�����"[c��b�І"�T<�8/�h�4�K^J��D+}�gZ�6����0���*�Y�����m���2�K�)��:��
-��Hh].���G��$�t05�V��G���F�3��)eP+_=�Xub=�e���)5a�ӧ�'����/�m\�
-ǣ�_3 i���������5ۙ˝��J!RQ�6�$�-��^���!������;�N� a>�^��и���{~C���s����\���P�'���Mh�#|�lB���$�Q��ݏ��<wxR�3�����R���f-�mހ9��?�w1���z1��:IG�o�󠗿=.��sy�fU�UV�e�����e���X@�������?�Ԭ)8.Z�1�L�j��3r�.��
-E7���!��x��_�KpE/��W?���w%`��� V�82Ġ2�8s�<�>���	6Ц�iz�<7�,��y���Y�O=���v�}0�����B=/��	5(��:!� ȱ�Z�0������uL��W΂�$���8"g�����Bp��G���p}um��a�D<b��mfœ��yM>r'8z�
-/����8��)<�;��G�T�-aB��� RtD�$`d�kiu��W�#��wB�L'"{��f��+�����V��.lxYS�0�u��s��Q^J���@��
-\�#����d{hU%D��U��EbQ$�XwD��N�&�Q�=�x��FL�f�I���SJ2So���Wat�J��/��G�:rK�l)����
-,|���=
-�G�� 
-A%x}�*`� �+���}��k�`e�L�k�4`Y��枽l
-�cj_���Ė5VPB��2��^h�L���!�XS�X#	�A*�/��J�b�{c�V��Ki�E8�?��L2��N�_��;�S=�y�(d)Yea�)Px�ҏ�r?i����4%��28�T|��ݤێ�e�H�j�<�_����m>�p7��MmwS���vcS[e��4J��i2;��M=�C�mb��X�]���m���M�Ѡ�
-��.�KgU�,�W�F�(��Ɔ�-��v��]s
-�>Z���?��$��
-��*���ԋ�ܶ8�!',�,0(�?����\�]���"���.Z��Ё�����*�t嗎�Җ_Z�KS~����e-�Y��B� +P�ŧ
-zC"ߐ�7$�
-�|C"ߐ�7$�
-�|Î|C �pe-�Y��B� +P��'r�}:��p>�oM��0)fn�� _7Էu�mM}[U�:�[[}k��WYJPh)x-����R Ze �*K�,KCeiس����$˚������1J���{#��#��W�^������-$��F�!Kɱ�㈉�(c�6���ιjI�L�D�3��$�G}��+�2�Ny�[�Zc�O(� �����ɡ���2�H;�I��r�W��W{�����z�.O��3�'�$S�>�ι�=��:�#&Q�ZtO����N~0;a-c��麵4�Hv"�t��s�f�zq��4�T�����u���
-�iÒ<P؀X���$  ��oͯ�}��\ V�)6.�����d	�q.=�SH�gj��S�Dr!O��a�2X��M��,�'�����Q,�[�d����3tcO�~�8S��%G�޻�e8<g��	׮E4U�
-�n* ����,�#|YL�2���}��Lb�x���2�\XҮ4,�ݰ��8,d ��70�So0<�M*��U��z����޳b^��\R�ŸRٹc[z�(ۊ��\S`�*�j���d^cmr��}%�ͭv���E��,���!b�(֕��L{����ǡ�Kh���ו��X��1>è�
-���%`Q�zӚa��(�\qZ�Y:�X�2��Q�
-l��9/�Y��밇a�����k�^w��Oc��S�&[��	0���u��Y$/
-)Wb����1�)c�?+Cj�5�Q�`�,��u��j��(I�������2�1����zz��G�֤��Ÿ(&]m�)���>����X��%�4eqo��+�Fʵ�1wb<�+��jQ\��)�2N�M��ڼ���]�E�m�;&��h��v��̕bݪ�Ͼo}m�ؓ���%��Od+�7f>y��?������������Z̧��-lw��ڛW�Z��j������qLa{��R&
-P:�sx��27��}��,潪�&�<-�<�L\�����Г����]�ju8ǉ��C�|�	��9�&x�QyV�ԏ1lԩ�?���u^Q�t{�m��~Y��bf�v<K��&��]>ե�T�x1�]0��[�D��X
-�3?^Yj�.�k�!=�e�{�}�\c�{juS�ZN����p��t0�A4N-v����V�<��Z^��k2��Q���,Lsp3L�i�%ӘZ��'��Yz�'���Z{K�)��R&l�=^Q�rn�=�h��)fL~ҷ7�X��h���^��F�k�`C�i:X� r�9�j� d�kP@_O[/���I�k�ZYۧ�M�b3�����(���I��k}+{�.�]���׊�eqG�|��&q��|�������ʋ����s(��Sj�ҳ�Y(�4ف��d/��(�;rۜU�<͚C�O34L�/�F�Z@j���N�Z�t+`9�J�֙�ekmLLk���e��y�j������~�k�S��3;��NoMQ��U�x���a���X+@���ϯ��	�_/�ꠝJ�|�kn	�k���y9_�&��buν`򸜹�+�՞�ጧͷ<(�r�&�A�{�h��c�ݰ�:M��`�ǽ��X4��t�喞EH��
->Ӆ帊�n�4���岄�C]�$��*����o?Ih�~NK�c,ce�)����N���A)<�a~�A����f5Fϻ@E��z�����C�N-#Ua���3��`������te��L	�$:�d�.����²��W�Y�f�>���d7�?R$��O���z�w�^��Jd���\�Oџ)�۪�BA�i���W��4*L�I��,�ษg��5�ϳZ(N%�#�������*e�����_����˝텁���k(�4�=�&͡���<�}X����5��-}W\�=
-�s�a�'[ԊTa6���$9a��A��1)�xAT��-TYJ�NŻ�)�T�5�L�s�5�p�=�aړ�B_v?d��?V��.I��Bv�\���1���M����xp�3����5��{�X�i�O��l���~k粬��/�z���WZb�%�Y
-�^m����˽'���g��#���n-̯q����/Ow��_S�)�ьf-�ֻY�}t�Z(��?�V,G^���Ϊ�Be^x�A��Q"��XX�ً��x\��x�r{�Y	�|o��e�~����b�'{�4��F�����y������gq�������8��{�Mt��^�Pփ�9�N�uJ�ߩ����-Yسz�X$L�v�խ����J��/o�J6�x����Gk��ǃ4���z�q��X�8��hN��M����u]�TvP��A�����
-�qp�k9�Q6�s�G��7��������l|��UO�ܰ��8�)NCAߍ�q���  9
-O!�4\���B�'1 B���#�2��'����7����|� �j�����wi�v1�gᾢ�Hފ�Iq����qp ��R>a��b�f�����u�}v��\��¸�����)<������SG!Fb���M�/�Ŋ�t���M���8q��i�&:#/�-k�\��y�Y�c^���y�A}��P��ic�o�KOg~Js�)������4�jnF�
-�.��860�u��b횿u�����s���§Q�'[9�dt�>��;G�vs-��;ye��lS`��9'�b���n�f�	F�*@H��!�<f5h�_���/*&����K�J��)7ZO�4��M~�&[S��:�R��2	L�@���R���d�"]�>w�I�@���~�Q4`#���w71�V
-�ȭ��ͣ!ܬͶe�C�U�80E�@������zS"H���9���/���/φ&�a_�K�����5��0}��}̚��D�<n��7r�7�1�).,���Ӥ�"��eg��7�*s}�[�P)5�9]K�0.P�#���9�X�����숨�`3�q�ȶ��F���#9�f��TR�l��wi���
-[Y
-�׬Yc_�.�d��j؇��</n���n�:�<��M�O�lnbҙ�)�K�W�7 U�V�䟮l���n�z�X~ C�)!�V(��:�t�$ 5a�2�Ϛk���7*�-SZ��I�f���>VA�}B#J�D�K���5�>��]�z]�����Šơ�h=�CmRM������h�q�gz(�E���<��8�wӔ��1�B̭�)�e�d�uӖm���x���}e�*�he+����N�_N8����&I������{�f��J�r�cF���Qֈ��͢h�2������$�%:MZ���$�s�y�s]z����^6O	符��q�o�;B��ȷS��e{V����BG�k��m8?���2(5�\q���8��P�>�G�����U<g���S�!��t�z���_�Ɇp������|B�9N��SF?d
-s�i0 qP>ƾ��Ⳅ�&�*T��w!T�,��R��*�yya|�G��Y�t{#l��fx~)������|��K�x�w�w�]<���Gx�h:F�u����z�W>���N�n����8+l�tզ�
-�#�L@�)�X��� .���!^ʆ��`h_XA����F�+�قߓP�羛A���	�	
-ε�f&_XΎ�L�6�R�#t�_��T&#��]�Hr.^-|�1�>E
-��+�. B_`|�>���=�YZ̖�cD��$�S���1�Gkn�q�,���Wf���5�������@��ᄋ=꺍ǅ����Q,�	�򤕗��R��>��<7<gg�\��G�'B� ��
-��ŹR�j�=Zu�+t�v�5l�Dj.|�|�e��]ͰGmw-�3�[V��JVX�Pα	{D�D2�8����쌙��\��]�g
-%���Eykf���F�ż{r������̕Â�aq�I��\X����]�p\V��#	{���l�\��[Ʒ��4,=���ne�f����B�M
-�d��⃫���\��Q��J\�vd�v�S�d��b�2SH���(!1��.��8� �q�� �<&�|��3OF1�=�ll��Sv�
-؏�
-��1�	�l8걫l�b�����]�#�a�_�
-����c�� R�����!O<�	s۠`�/xܳZIQ�b+�A���P��2�y��q1�����k���m�r�[�H/�P����L��5�ȗ
-C�P4��W?���1|	�;;^E���S,�r�u�zd����S�L�RJQ
-ݥ���zU��*��eKdj�|&�Z4\�1���+P�צz�*w�U�(�:��z���bpxA�u!���耋������ӦYm��B��_^z,�+����5�s��N�,[g�<�����P��Oy����g�S��Ȥm�f���4�B�Y���8�SwwU���UT2FK�����t�s3}�i�Qޱ�ܲ�q� .�
-�
-�Z������Y�
-滀K#eߧ���q�H�Ү16�gt��B�k��Fk>�h��v0`I*�3j?g:��aq6���"�Wy��oze_F&N=���2�F�%�]K��R�aa2�Һ|<��qRL橐ʹ�:�:4O��(�
-�u>��")_�Ƃ��8Id�,��
-WOj�&����Rȡ�"&�Q����{gbvXy�\ꢬ���x �%�͍�,���<������w�g��\�98��cƙ�V��~/LwC�L�˙nֵ=�"�g_U��o�+�M0�l��y>.R�&}�Y(���sӶ������'�l0�Va�-��3_T��JÙa;�c���
-������8�[h��� =�9�3��M{>��T�g'�"��W�D*���Aכ.�ղ���۷&�����k����\ynZ��-�֍�naһ�ܰX���ƍ�K�tnJ���U�W2�i-�ד��.	���[��H'@A�6" A�m�
-��e[��d�Pr�j�~m��Gϴ����4(�K[g�s
-��Y��2�3&U���ۦ����2�zxP˨��&��zx�I���`c��Ŏ����]8������痋�[<��TqʠW~��F}�]�����&��g�k#rUO|Y=WvǷ�Ez5��Q�Ɏ`P���L��#9�[Z�4NrF`��0EFz����wx^W�|uE�zV�P������6�p%�J��A���r���;�@� Y�ɮ:���N��8�X�;��g������R�~n�RS�'��&����:��h|����H�S4o��a<=��'3��9��V��i�,�3��w���V�\|�,}�/ ]�,V��%2_^����dmzӑE���a�O���'�����XH���RL�s���>�\f������o��Գ�"��7�95.E�]�CZ��5c9��G�^����4rm5"�>W�^�I�}P�3�������fY]e�!!�f���t����؂/_mR6���������p��(��am��nq��7A�E��������R��z_�w�N5�|��Vo��'rP�\n�s��xMX �!��Y�*�)}�Dx��fq���R���s�j93��9�?�x��ז�
-��8B6�yu^�a��&���³<_�8ܲ��ad��..D
-?L[�Td�a���^}&WPޑkɎk0s�M�'��e��8�@)!$�j���B������?�C���i�7v~�!Y�<~3��q�8;�1'����á�7Ù7ɕ���Ÿq�VP��k����ro:�m�S�ϡ[���^%���,�? z
-5�6��(���3�}?�@��Y4��Y���K9�:�G�z�]�	j⊗v_6��u�]�}���%x�(�(��w�=�8�R�W�s�����ܙ��,T2��%T��ѫ�ݶ�{E��!�&P7���	ݪ������<�y��!^���Ŀ�Y�1/�A�sS��[m1��h�P)�f�7	�xH!cZUv��~7�[�4� C�j~,���s��"�r�����_ís���k\R/L�ׯ��^~I���������aI�Oo�����e�����g���T1�}�3�s�=� *ap��s`0��U�^>ʏA��kU]Z����2|J�F3��dl��x��+�q$)|.5�&��j��b�o�岭�����I�J�}i (	I)�oʼ�����Z�9:�Z
-�oӘ����\lw�tߴ]ݵg��?���".S�w�c�Լ`V�*���kS�Kڕ��$Ҍ���
-�>N��[��1���E��Qɫ�s���"�v���$���5�=���o���j��IYj��N�m�wM��0{="˱�0P>�s����	ǧ�}��bf�G��|�N�!h��͞�R�J�x(+&|���lr-�Ⲛz*E2���˓��F9�/_���dv����5
-��>�	�,a�+���:�f��?Bn�;��+��_��͑pc��X ��
-Z5	��s�
-�|�9�y;�k�[�����߼F|(����ݽ���/�~��	$�lu�^L�bI�-�gY�N�w<�[�o��F|z�ތ��ۆu�2�K;���%;��f6Ebg�H C�l*xM҅�f�h�p��EQڐ�n�p)�Et�2�O������9�,^��G�p���[�9��//��DY#�P��
-�iᤧ� �E�'�|�e�f�,Ր
-Z�"34����zM����)^�Ѿ%
-`q;h������?����b�s�^Uy 	�Ϫ�R���@&���mJP�rg�
-3��Xq�W�B���87KV�� UԟŇ����/9o�w��g�j�ƺ���-u5�b�K��y�7��9O24����c��B=�F>w�O*0Ԡ��6ٻP��y�$�r_;[Au��f��d�j �o}ӄ~E�Ȍ�1��l�[*�Eܧm/������F�����4�AqO���D_P�������><�����C��PzB��0�]����tPV|���+�i4Iȣw죿�S�Yh���%�m.�����c�����2O�E'��(|^M^�*���żbnV ��6�i�r����s�^
-脅��\�����7W�,7����+� 7��|�^��7B�VdIE.������r 9��r �h���=����ϵ��s��t�1!���2(��s
-��!���|���u�VqMpg�����_?D�E�����|������[%� ��\DͳJ�t�B�<g(s��(�8+��Xm�ô��k��\s/Ci����6��\k�uL��陊/u�6���)��B�*��9����Q+W2IB+.����F��b4������dy��
-�E����w^�1������L�#5-2�۩]FӐ�:�,Z \i������r���V�6��x
-F�H\nP�:|~7Foj��}T~i+�I�#
-�����>��u#9˙G~
-]*�E ^�����CA���Y�����h�q���Uj�1�����)u�FR�a�%���oª!V�_ت!���V
-IR�K�<��#*&X1J�A�)��&/����覒�ea�%�Z�z���G�X�.�o��;��~���\Rtp�k�����7�0d�0�,�b��ږ���T�t�4o=�� 粙x[��L��S���[4�E9���xk^K���l�z?�g�\�P�.��E�]�e|�?g+��`i�/�JKn\[�Vg���JƶV�$ɍo
-��	�3#.��]���Lc��r無8�4�m��LX]�Vz�;�f�xl=�s���[o��Z���#-�7̌����1^�	��Aԧ���������d�o��El��C4����q}�U��Z ��7=P%T�(t��OaP}0�ּ�N�]���ؚUpU�jQ]�=���[-טN����$j%%o|����d|{�)�'ٷeFW��bb�%�s�V?��{��9���3�B��Y�(o���Yu���f#/�9^o� �c�p��N�ۤ?���9�� ��I�8W�Z����q|~{�Lz�����������[�b��0 M)&=\�n.}B�v	d�hdc]#��60Y�� F����~���]]ۓ�e����) ���J�K���\���R^���}�9�&M����+zkb�D�NQ�q>�����t�0�]RO70�~��J
-F�aL`��r��)�e;]CQ�'�>l�z�����{����I���������O�;���_Dz"���U<b�׽O���8�G���a�舯Ž·��C�I���*�F[��� ���P��� =��5�z�l � �i�ō|�թQ���,���[N���-W��'�V�m�	��.��"_�L���橐�[I��_yhC���{k������DŢ܏&�	��qЧWQ���{�8����T��լIp�OJN�b�釋�M./�7������^y�� %v�˗	��e�]B�$���Z�+��i���_������eyom��&﮽���h�<.Z���ߛN�8c��3�m�w:A�!�
-!�٬�B ����G!��hK3	U.�qBa1�wΊ���Ƌ/Ff��_�2፝�/[���4嶪��Q^�[+�44�z������Ϲ-��VQ�������:3|��n������-�ÛP�9���|Ч���=�|�y��Eh1��B��!��J�.b��-˫ ��!�I-��0�UM��Y�O���B0u?-,��4,�$�,��vt���3��4���8a�f�7W�B!D9���$���lT�\M>!�
-&�ÿ�j�eo��V�?�_�����o� 'R4�*߂]������|
-Rw�%I=�in3�Vv��a��_LpHv��ml��	�b��'���m(�p`�C6R`a�c�\�loٻwj���>(�S8L�0��w��V����?p�wdA�[Ng�bC�6�Y8[��:!����@e~�MȤ׃$/݂���B��6{=,+y�Z����V{���WWn�EЦ�wN�/>�����
-��:�p'q�lӡ��6K�U�o��k���i��7u�oJ����}�!|2�gW�ǲYX!�摂2
-B=������maF�̓?or[h�����h8�;��*Z�W�ѓfY�ک�j��6����bg�#������
-����X��$���:2�*�5��u��6�mq/�ˑNt���{��5�G\.σm��yH��f��P���J�c�9u^Ƿ��jW�
-�Դ�����Ѱ�@P���\H �c4������MF�����.�:>	�L����#5�b�Ŝ R�IK�z���j���
-�w�[0藴�+�;h��d�^�(u�}qji�%�=��~��t���BZ��	���d�]M%4�0�V�aDK���t�D��n�F�|��;l���B��;$�Q���0!��$���WyKNc��O�|_����U<v7�X�2��vc��}�m�|1����A(+2��;!��������o���-<{��3�����͂
-
-���Hmdo?��_�ȭ����w����t��ww���S��� ��IE*6A_ꨣ�bz���H��2�G�iD<�R��vB�
-�L���Ͷ6�O���x�ɒ~)C�N;hDK�����:���G���Ǿ8O@�׏�%��;�sp�>�>>���!�{p�f~�aD'�q4I�G���� ����GH&��$�>x���q{xߏ�h�ڍ��EMC�Dr'�g$E���+s�����|�����9sp]>�<;?��z�q�K&GF	�C� �h��')�9O�J�]h'��ݔ4tt'b��_��`�_N������
-������FQ�1�>���Vs�zZ��p�eek�Y��f}��"�#��W����ħ71��EC�:lQ�D���@D�C�[ E�k5���?�=^p^&,9slD羛�A��
-��UK�����ű i�Ű0f�j��)��㡥��w�R�=�Fc��e���J��V���5���j��鶛��������7�J��P9����P��M�#ڡ>'���Ҁp�u\��;������G�
-?��B�7ךw�O�����7V�c��)�����_�׫
-���V���0������[����J��}�u�1�A�
-M��Gv���<�/(��%-g�!
-��mLu�����>���#FAF�C�È0��a%�I4"8�/8Dņ�Apdq}~���gZ���ԫ�z%+� ����_��x<��H�b���=��/��1�@�]�����m�
-�LO��,H8�t���<n��kz%�8
-��g�9���V��������1k���Jݵ��D)P3)Sd/+J�'@݁���K�Y��2���9!�j繑5=�emү���h��'GG���$h�8�Ӫj�>'�a�Ϩ/���������T���n������g��b=/��!<¦���B����,E۫���'��RDR���v̬1�-74����
-�љ?pƸ0� !�|�t�Ɂ
-O}��o�8�$=��yAZ����u=����o=�|��gv����� �Fa���}�ro{���[�|�"�Lg
- Jk�w�.��'�W�d%�Q4�k�P�ʠ���r�D!j�?�!�.r��
-J�/=H�t& H3���S/����m�B��;
-Z�m�f�1�7W�\�[kw�Z�U��W�����6�9ܬ0i-L6��p4�7�?�0)A|��8�bS�/N��f�h����&�� �>�����"+��H�/"�p�3�s�p|�m2��������O�ol��S\{>����$���H`oi�j��3r����7?��d��1�I�r2`s����O��)0~���R�)w;zb������8��~��Ľf�@�''�R@����5�E��~\��JxG^�48F�nb7٫��yi�$��S��	�)9��d�c%�G'��*�5����\�b~��Z��,�/��k�v���F�3�����Gl�l�j��V+�z�ɴ��9T�5���|>�ŗ��p3�����,���.�ouy�?� fI�kr�
- �&ɐߙ�s|ˬ�9�=�Na fE}�<���u
-YU��|3�?���t�㿱�l��_���ލ�[y�ǿ1���z��ܜ~�J�ݼy�E�d����u��^;Y�?���M��6�.a<�Yd�X 9�F�q08T_A��}d�]��Zq���Naz�s��y�3�7GqD���4�ޏ��M{3���A���+��Q�_��g�#���������ɍ�Ѽ���L�F�/&��sʃb�\0�i�a������������7�Uw���ɝ����F�1�80���P�'��b6��-��1J�U�e���E����!pz�u̒��N7g�[m����n屈��8�D�+�c��s��f�Y��������{����?F'��(��ݓ�Ͻځj���e�A�w<�!�8W�����Ys�_m����˽'=���p�l�U�g/����������7{{;/����_�>����/vzR��v�֌����3
-f��־"V�5�[�Jaj�����b��������Ǘ��{fҫ�{�$�!�K�5��������3���g=��=����$M����Jz��ޚ�����n=���l�Y7��<���u�F[���`�|���������������'����V����a�4:�e#�L��l����Z�N���3M�Ϻ~1�?+7��+ ��,���0e��e�<Z�x�M��Au
-��e�P��um���v�b�2�$z�(&��(�pJ]��o����4�
-�]+̿(N�a�����)�o����n�2�O����Xk���[yf��������/���H��2���hXt�� ��~�&�
-��뽭���<�h��
- (][�搃~���w�Q����Į���K��/7��x��Kuf_K�~�K
-�ܶԼ}����MZ�{���Lf�h���';�/_<���Ǐc����d��~�~.��l�����#/<�K?�@˨M�Q����uo��|�����"�c��M�F�;�_j{��Cm�u�238��7�A�CP�9y"�+؂חe�e���hC\���&�Y�-�����*z�Qȁ�ǡ7G����v���������聳���V7��߹��q;�����)�F��=znk�D�M�;���Fe���F���I���*�L�?���=��lt���w��6�9�]���퇭�r*T�v���cZ#�qD�7�u>${s'������?��t��5��Y��ky������[y�����2D�y�zviѐkF
-����]��G^9�ȥk�W֋��յ�<��
-�蓅r�$�勞�3a^]F��WW�n��������N�պ��q���
-M�7\�,��n����qw��v�B���w\���
-�g!�Ͻ�P��{�n�?���Y��̀\�1�W��@�n�������d�Jx x��|�6&e�/-FHJe�y(7��f�.�s}v��C^�g���:���fkM������n�n��V�G����~�ӫ�����?@�
-�{U?�>�@��
-��z4�SO��^����zU�J�t�?�¤=��� J�^�4��P骒F	\�zғ��G�ӡy��N��5�E@?�����`e�'���s�Q�%o?i
-�ȸ��'� ��U��� �#{GO�N�s�X|���&��9`Α7
-��l�Q2���7�<�d�5W�͗���������i���hś���Q�3�c���y�a,�O9��M�̖M�x1���c@`��GP�a&Fi�
-ɿ:<J*s����M�u�����OR�t�yG�=��7���Qi6����Õ*)ΔPON���8>���
-_|
-��2:�ެ�pt��n�[0�1�2C&�>��[n0�]Wa�o4�_�w �8�Ôv���Z�V�����@� L�Fw�u�0!�7�Ⱦ�U*_/��z�yE �k-wN��ƪ��@8��2ko����[o�*�=�ֳ���ڂ�׻G��|��� ,���n� ��͂���4��jk�U��N��nt���*o��ڌ�������s"��L#bK�������4 B�L>�[��� ګ����j�� 6� 4	��i ������6G!H�!ߪ�⸔�KS�B�VlF�\:�;�o���qN���,!c`��e��`��MւW���4Y2�C�p?���hL���{���	���\r��<�2�ފ(�%�
-�
-`J�A�ih��#�=ݚ��l(_[����z�� �h���x\hҀG0���nl9�:��|Ks�%�:rOD-���%4������Qs�
-�`/'���:Ӛ�sѧk�F���`�"hN0څ� �H�1�3�?6hQ�t�<?8��W�0�AwboL�gZ�y��?��sf�7�,�n@��h�
-!F_{!(p1tv�V �85�A�;�����+>�,O�����Y+a(bX��ϻf��f(�����*d$
-��4m�$�̚�����P�i�=̐k��+?���Q�/o*�P/�� 8e�!�Oc�����<��W����Q�z_�A�p��uM&��Pc�TA}����m��_U��r�����1����7U��u���a4@<�����v�m�۬q��]X\ow6Vݵ溨��u[�T5�9O[�
-��j���3O�n�L��$�_������j]���Z�uw��9��6�"������殃���jx5X����g=C�����4�A�>�$�O�mvW	�f�m�����8o4I$C��4:�f��t������7��j�����k�3hPg��v�v���� �m��ᬹk�U��uQ_o8�u��m9�<��V��h;���l�9�
-w����gˡ����Ԕ�įՆ�A�;��T��]LD����Z_�� ���5�
--,P0]븠h��ݵ��!b��t�g{�/Q���;N��6:m��t7�n���_�8��(��l3h����Zm0��*4Y�Z
-�5�K
-e��l�m�6@i�4 �P?V[�׫���Φ�\ot@�vA�u�։��'`��;k4���v5Z
-wu��먵��v:�Ns��v6��N���V�n�����].��-�^��]k \�&���
-��tѴ�Z�b�f���r���ƺ���@?v�E����2��Z�t���M�nݛ}g�[Co�k���S�Z�Z�rۀ���
-e�h�@�֠�@������l��5�~]%w7:hD���n8O��u����D�n�[���*T��v�ĳ�F?����/�.r�*�t�z�Xw�k-P���+�mgy���;h�T�Wd�v6�i�jr
-ݯ~�p��?��,�{ڏ��f�;h��ǏHa<�5*��0/45� f��ā��������BFӔ;��/�Wei�摒_�F#�`М�C#����g����'�q	����l0�Ș�R�	k�^��8���1V��֚�=�=���D|Q�Bׂ����ă/5��O�N�ß|/^���x��88��~4>��il�����9{*M�l��j�M��Q�+/�͠w�/����}.����v��P��N����N��vg�����=��C/9�T@��91.&�nUaj�Y���xZZ��Ơ��x���):*�W����Z���0:�<X�
-Ő�ߴ�<������q0��0a�u碃aR�����=w%�S�Lɿ//)��Ї��e�]��1O���O�|���v˱�g�J���^R��[��K^� ���(i$d?̋m��wUrY�f�!����K(s,��'��gd5��)�K�֙�0v������!9�+�e��T\5����� !h��*]�K�(9����"O�
-���w2�,�������������������M�O����������\����������;�wa�����0�����@�ݚ��w��������(#�sG:S���g'���[3�8a^nf\j^.C�q$ZZ��ك�ӏ��,1 i2~���˪�؀s$�yw�T�w�e�@���h\��;൮�,F���Ap��{0b��+���{�F���a�u�8�Åz�V<�t�?>��}���Wo�ݤ�����\V/����?�s�����A�I�1J���a�M�5Z�.�9�[�R�]R� �m��5���@֔��eefUf+�������[jj�/�c���ZZUY�DNƣV��b*��QE�_���a
-{@zEBd�����Yƙ�A������T9�P�x�*g�>�&��.���T+S���W?*��c�*l� }J��"K�
-�9meq�Κr8�N�жh�릑�$0��VOC��jM�Q�γ>��i"�B�V�}�?��M�{����,����o���-]#ߊw��\�n���L9I�Ib��5J4��4�)���j
-�\�F�,�%��m��7��E���c՟���BO8/a�9pz�P�Wkz����F�!�9�6�����&�/�Ȇ��)�BG��QJ���/+79�N�����5�d���.�ęg��-��I���RGK?����Kjגz _&~o�������f?��F ����P��Ip����b����]�6ϰ�8�@�x�~��������w�6��fC����\C?��˼.�ۓ#$5��Ȥ���ﳮ
-aL}oC"M6M_�i'T�T᧱� ��1�!z���XÌ�#.O'�L!�#��l�V�|D mJX����b >��B�/�d�	����=�i�a�����`���T�R���	�ĵ;�b����FO �Kt�(�}L��3 �?�A�!�	QW��1�Jr�K�\ �VV诿�i��X�}����N=��
-_e�� d��#٫�_%��e٧�Q��8�Oi2J��5���zg�t�H��H�9��ϖ�nR��M�}+�&��T:6�@ Qu)+�fi\|��O�)$�49WpX�s
-I��OJ܉iEJ '���=�U眗��CN��}acc�	}���Y5�d�����jn:�K]d��p�x�������t$�f���[Q�q�����/���м���0�UU��d��[�b`A�%s�c��W�1�
-��(���:~�1]
-����z��Sk~��>����`޿�ί桗�/�zip��>u}�*�b�+��@�es�L�<�8\0B�!C�����XC%~��<Ȳq����ox��|�&�0JY2�"�}�W�������[e��劭�&��"����x���+���%�+�FE�}�%'"�Lj�(t�ɷ!�<�E��ה<�	&��x�hm�1��`֑��ٙ���8S�N��P�$0w4U�2E�&�J	��H%od_�ds�J�qm�)H_�t�nä"n�'l�Af�N�ͼS/z����a�&G�R�M�w0�,î�5����\�k������b%ŵ�8P`���fY���$:bΫ����M ����g���w^0'͛[�tj�+�5H�7DM�c��v�|a�l&,&��2A��td��-�yt��k1��a}´�2C�դ#$Cn��/xp��s�虳�./�s������ׄ\�b�z�(PA3%��������;O��Rпf��D��7����ظ��Ye�\�v�'i������[�w(������O�q�YT�=ж?�:f�6�7���i6N�=�ȔI߆epC�0���W�A~��{��$_�!�k��6��䙆b��O��G~]��Pt:�á~�`歯|m���;�v�!<[;��G�\�mnx��ҕ���^
-����l�6>�9֟����9Bc\H1���0@~ ��3.o����� ϴ9J>���q��Lqz� � R����ݐ��Y�í~�i s��8�F��΁x��ps���W���_a�aN����̆�������y6ç��|����㷷�>Le|��^��),�e�����M����{J�2��b����	K�dWE%�|$�<
-�	A	�x�kDS��a��M����>+��y$�'ꘇ�x�0��
-L�x���p Yo�6�!�a�'q�1��Vw�*D�t�T�����QX:��E6�&����a�-�<g��\�h9����؀���O`�;�F�<a��n#'O�x�b6i�L�ª����hF�������Ի]��yX|�>� ����rű#��\���.����W"����(��M��s����3G�̀�۬����d2��@\1N`4F��j-�����B#�IA�Td5>��S�4�D�`}mZ���E�%�ib����h!�$�A&r�	>D�ć���:�u����lY
-���#EX�`�����x'�L��(���V�^|^���?�`!S�?#�p�1@���|�]˙������2[2f��4�ʎj��h;(2h"�̔���x���܇�B<�jP$4>#6k�2�`2F󽓃YԷ,��������!@܈q�0�}�
-�Ih=#������]��\"E����ݜ}�3޸������r��66II�?,�(-,!Qx��\YB�(1�'l�)'b�lv�ﴣ k��,�h����� *�X�5�j�FV���ա�Z��3�l�w_���"SBj%�&��dQ�"1op���>�d4�b�p�:�����U�z`��A
-�F	,DQ�[r6+H8���y��M�V�*ʺ5ۺŉc�v9��5���o��!�muO���Z�RG����Ֆ-�%Y~���;��~�&��C�܉φq��6:ҩ&��=_�����lR!��x:��3�M����IY@�`����*Wc�Y2eǠÑ�F�p�K`b�B�F�B
-��\E��|������ ��Cq�!7p<<��}����Ca2xvv����~@U���o�R���=�;�\���o©t^���,��9
-0v�?��1������ɤ߇8�f��M#p�!��I���<�Qr���~V5�r�О7b��zJ������.(Z��B[(hL�]�� �']ҳ���r���/L6�����_a����8�C�8��.;�;������p*f��W�n>.��}���OT�O��nM��^{_���ǆ�Ye٪Y+q^.8����m�+�O0z.��K��YH�i���i�h�)���v\.D�7��1%�O�B/��ɸV`"�/hX ���Fi��K)���Ɖ���1�8&�$a�~��8�e���X�w������\C�6U����=�|H���1���/��T6p�f�c�1����O��E�`�O�Q_Ș.��8,k ��kg!/?�n.k�S��N���9_]4�����B:�u)>������}�"Ţ�̫Q]RVU�3��\,���e2
-�4g4@�2|~������PÌ��ݻ�A�)�N�Y�v�1g�ᄶ,k
-#^�����C7�C�/}���#�-�+f�n����ߍ�5�h��v����3�����J{ _(�y�Q����c0`��8�"�I�	9����>�8��k[��M��h-�(����GX���=x�����R[.�Ńs��\bN�d���;�[5"�~��N�%���B�Ϛ�8�8�~qaPHp����P/E��H�]�^�Q��?"�]yR.c��.Xolj��:�6���<��ʡJa�#Y�h�s�1whI��S�b������\��p��V�A�.䮋!w6m�S�tA�{�Y����Y̨2��3�5����۰��bD��
-.�jz��+�ٱ�of�2�	;��'�Q�,�����S�tܳy��(�7��K�2�iu��,,0��,����8�ؓ�p6�I�n{�ۮO�RB Qމ�iFO�I��� -:ܴ�h�Έ�+&E��"�:i&��&���1��҅���/����_���003�4����`���ۭ��_���_�W�98҄�X��Y��cX��+���� ~�7�A@�&d���a��/�� O҃�<P�cU:�CG�*o��W^B�̴ݪl��%I_��_���4�O~�k��n��㿻�m���s��V��}/�}���ց
-7�6���^sU�B�"���|�T�ǴW��ap�5�i|�~L+�0�e��q<ܸ!)�gJ���v����Ԏ`T�J� VY2O�p]��Ȕ��/�>�k��a�����8L����L����AD��)��b�"7�\���Ŭ����
-������8�*�D�9��_��z-��B�7��\>G.�Vp������ ����Q|���de���0��;o�&�|i4.���������b�����Bs���qp8��X<O�`��6p{e��C�sȒ@���]�H��.c��dv��b�s�ņ~�����_ӳJ.�"o��� ĩ�L�>R����1�E1��v��@�VPb D؏F�CP*�Y��9��O�?~���Vi��x�%�%�lh-��A�V�Y/��h�$<>C��m�!��ǮdǞ�����O/��	2e�W;yv���L�6^fE8�d|Lr�����*�}��JeR%*f�б��\� !
-\;���D��B5�$�����<
-4�A;²p!���t���ND��eA�����  �?�A�
-�췇>��;a?��1n��
-p62����� ^���Q��5�
-���d���`����$���
-�>�����z�zW@��� �� ��;G�n��|l�E���q���_7�i�����j�`�׸���Z��!q0��ǽ7��_��o�W*������5�#�bk�lFR|�����m
-�U �R.�B"z�D�n�<���c�9��ۀdA� �>�p,R����Y��B��x�Ak1� ��
-08�@8 Ȟ�$5t����y�.��'j�R�G�d<�%>������2����W��g��������c��������j4�����3�V�0��UN���C\'�L����� ��`i���\����&��s��=w�����[oa� N 
