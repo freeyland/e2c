@@ -10,5 +10,5 @@ defaultEntryPoints = ["http", "https"]
   compress = false
     [entryPoints.https.tls]
       [[entryPoints.https.tls.certificates]]
-      certFile = "/etc/ssl/certs/e2c.crt"
-      keyFile = "/etc/ssl/private/e2c.key"
+      certFile = "/etc/ssl/certs/m2c.crt"
+      keyFile = "/etc/ssl/private/m2c.key"

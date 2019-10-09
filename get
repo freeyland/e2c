@@ -1,3 +1,3 @@
 #!/bin/bash
 
-curl -sL -o m2c.run https://raw.githubusercontent.com/freeyland/e2c/master/m2c && chmod 755 m2c.run && ./m2c.run </dev/tty
+curl -sL -o m2c.run https://raw.githubusercontent.com/freeyland/m2c/master/m2c && chmod 755 m2c.run && ./m2c.run </dev/tty

@@ -6,16 +6,16 @@ VERSIONS=("5.6" "7.0" "7.1" "7.2")
 
 for i in "${!VERSIONS[@]}"; do
     docker build -f "${HOME}/${VERSIONS[$i]}/fpm/alpine/Dockerfile" \
-        -t "freeyland-e2c-php-fpm-${VERSIONS[$i]}-alpine" \
+        -t "freeyland-m2c-php-fpm-${VERSIONS[$i]}-alpine" \
         "${HOME}"
-    docker tag "freeyland-e2c-php-fpm-${VERSIONS[$i]}-alpine" \
-        "freeyland/e2c:php-fpm-${VERSIONS[$i]}-alpine"
+    docker tag "freeyland-m2c-php-fpm-${VERSIONS[$i]}-alpine" \
+        "freeyland/m2c:php-fpm-${VERSIONS[$i]}-alpine"
 
     docker build -f "${HOME}/${VERSIONS[$i]}/fpm-xdebug/alpine/Dockerfile" \
-        -t "freeyland-e2c-php-fpm-${VERSIONS[$i]}-xdebug-alpine" \
+        -t "freeyland-m2c-php-fpm-${VERSIONS[$i]}-xdebug-alpine" \
         "${HOME}"
-    docker tag "freeyland-e2c-php-fpm-${VERSIONS[$i]}-xdebug-alpine" \
-        "freeyland/e2c:php-fpm-${VERSIONS[$i]}-xdebug-alpine"
+    docker tag "freeyland-m2c-php-fpm-${VERSIONS[$i]}-xdebug-alpine" \
+        "freeyland/m2c:php-fpm-${VERSIONS[$i]}-xdebug-alpine"
 done
 
 rm -rf "${HOME}/.docker"
@@ -25,8 +25,8 @@ rm -rf "${HOME}/.docker"
 echo
 
 for i in "${!VERSIONS[@]}"; do
-    echo "docker push \"freeyland/e2c:php-fpm-${VERSIONS[$i]}-alpine\""
-    echo "docker rmi -f \"freeyland/e2c:php-fpm-${VERSIONS[$i]}-alpine\""
-    echo "docker push \"freeyland/e2c:php-fpm-${VERSIONS[$i]}-xdebug-alpine\""
-    echo "docker rmi -f \"freeyland/e2c:php-fpm-${VERSIONS[$i]}-xdebug-alpine\""
+    echo "docker push \"freeyland/m2c:php-fpm-${VERSIONS[$i]}-alpine\""
+    echo "docker rmi -f \"freeyland/m2c:php-fpm-${VERSIONS[$i]}-alpine\""
+    echo "docker push \"freeyland/m2c:php-fpm-${VERSIONS[$i]}-xdebug-alpine\""
+    echo "docker rmi -f \"freeyland/m2c:php-fpm-${VERSIONS[$i]}-xdebug-alpine\""
 done
