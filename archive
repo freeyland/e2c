@@ -6,9 +6,9 @@ echo '
 
 exit 0
 
-__ARCHIVED__' >>./e2c
+__ARCHIVED__' >>./m2c
 
-tar --format ustar -czf ./e2c.tar.gz .e2c
-cat ./e2c.tar.gz >>./m2c
+tar --format ustar -czf ./m2c.tar.gz .e2c
+cat ./m2c.tar.gz >>./m2c
 
-rm -rf e2c.tar.gz
+rm -rf m2c.tar.gz
