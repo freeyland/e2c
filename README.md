@@ -104,6 +104,11 @@ e2c db --help
 
 You can access phpmyadmin page by surfing to http://pma.[E2C_CFG_DOMAIN_NAME]
 
+## Still performance issues
+
+https://markshust.com/2018/01/30/performance-tuning-docker-mac/
+
+
 ## License
 
 [MIT](LICENSE)
