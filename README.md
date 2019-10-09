@@ -108,7 +108,7 @@ You can access phpmyadmin page by surfing to http://pma.[M2C_CFG_DOMAIN_NAME]
 
 https://markshust.com/2018/01/30/performance-tuning-docker-mac/
 
-<p align="center"><img src="assets/images/docker-settings.png" width="600" align="center" alt="Emma2click Docker Magento environment and toolset" /></p>
+<p align="center"><img src="assets/images/docker-settings.png" width="600" align="center" alt="Docker settings" /></p>
 
 
 ## License
