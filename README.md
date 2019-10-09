@@ -46,9 +46,9 @@ After toolset is installed, you will have the next tools available locally:
 - Mailhog - <a href="https://mailhog.m2c.test" target="_blank">https://mailhog.m2c.test</a>
 - Dnsmasq - <a href="https://dnsmasq.m2c.test" target="_blank">https://dnsmasq.m2c.test</a>
 
-Toolset local homepage with links to all tools listed above - <a href="https://m2c.test" target="_blank">https://m2c.test</a>
+Toolset local homepage with links to all tools listed above - <a href="https://e2c.test" target="_blank">https://e2c.test</a>
 
-**All docker images with services listed above must be active.** These services are configured to start automatically and should not be stopped. Without active Traefik and Dnsmasq, m2c backed projects can't work properly.  
+**All docker images with services listed above must be active.** These services are configured to start automatically and should not be stopped. Without active Traefik and Dnsmasq, e2c backed projects can't work properly.  
 
 ### Per-project services
 
@@ -73,14 +73,14 @@ And optionally available:
 
 After toolset is installed on your system, you may use it to initialize new or existing magento projects.
 
-To get a list of all commands and usage information, run ```m2c``` or ```m2c --help``` which is equivalent.
+To get a list of all commands and usage information, run ```e2c``` or ```e2c --help``` which is equivalent.
 
 ### Interactive project initialization mode (existing and new)
 
 To initialize project, open the desired directory with terminal and run
 
 ```bash
-m2c init
+e2c init
 ```
 
 This command will launch project initialization in interactive mode. Simply follow the steps to configure the desired Docker Magento development environment.
@@ -90,14 +90,14 @@ This command will launch project initialization in interactive mode. Simply foll
 If at least one command argument is defined, automated setup will be started. All undefined parameters will be set with default values.
 
 ```bash
-m2c init [parameters...] [flags...]
+e2c init [parameters...] [flags...]
 ```
 
 To get a list of all available parameters and flags for project configuration, run 
 
 ```bash
-m2c init --help
-m2c db --help
+e2c init --help
+e2c db --help
 ```
 
 ## PhpMyadmin

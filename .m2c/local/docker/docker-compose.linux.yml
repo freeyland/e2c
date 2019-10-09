@@ -9,14 +9,14 @@ services:
   php:
     volumes:
       - ~/.composer:/var/www/.composer
-      - ~/.m2c/ssl/certs:/usr/share/ca-certificates/m2c:ro
+      - ~/.m2c/ssl/certs:/usr/share/ca-certificates/e2c:ro
       - ./../../${E2C_CFG_MAGENTO_SRC}/:/var/www/html
       - sock_data:/sock
 
   xdebug:
     volumes:
       - ~/.composer:/var/www/.composer
-      - ~/.m2c/ssl/certs:/usr/share/ca-certificates/m2c:ro
+      - ~/.m2c/ssl/certs:/usr/share/ca-certificates/e2c:ro
       - ./../../${E2C_CFG_MAGENTO_SRC}/:/var/www/html
       - sock_data:/sock
 

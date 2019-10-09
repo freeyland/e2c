@@ -1,6 +1,6 @@
 FROM    alpine:3.10
 
-LABEL   maintainer="Magm2click, Dmitry Shkoliar @shkoliar"
+LABEL   maintainer="Mage2click, Dmitry Shkoliar @shkoliar"
 
 ARG     PHP_VERSION=${PHP_VERSION:-"7.3.10-r0"}
 

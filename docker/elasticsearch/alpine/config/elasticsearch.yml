@@ -1,5 +1,5 @@
 cluster.name: "docker-cluster"
-node.name: "m2c-node"
+node.name: "e2c-node"
 network.host: 0.0.0.0
 discovery.type: single-node
 
