@@ -102,7 +102,7 @@ m2c db --help
 
 ## PhpMyadmin
 
-You can access phpmyadmin page by surfing to http://pma.[M2C_CFG_DOMAIN_NAME]
+You can access phpmyadmin page by surfing to http://pma.[E2C_CFG_DOMAIN_NAME]
 
 ## Still performance issues
 

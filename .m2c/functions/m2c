@@ -29,7 +29,7 @@ m2c_save_project_env() {
 
     [[ -f "$config_env" ]] || mkdir -p "$(dirname "$config_env")" && touch "$config_env"
 
-    set | grep '^M2C_CFG_' > "$config_env"
+    set | grep '^E2C_CFG_' > "$config_env"
 }
 
 m2c_load_project_env() {
@@ -42,9 +42,9 @@ m2c_load_project_env() {
         set +a
     fi
 
-    export M2C_PROJECT_PATH="$m2c_project_dir"
+    export E2C_PROJECT_PATH="$m2c_project_dir"
 
-    export M2C_TRAEFIK_IP="$(docker ps \
+    export E2C_TRAEFIK_IP="$(docker ps \
         --filter "label=com.docker.compose.project=m2c" \
         --filter "label=com.docker.compose.service=traefik" \
         -qa | xargs docker inspect \
@@ -97,21 +97,21 @@ m2c_validate_not_empty() {
 }
 
 m2c_elasticsearch_configure() {
-    local version=${M2C_CFG_ELASTICSEARCH:0:1}
+    local version=${E2C_CFG_ELASTICSEARCH:0:1}
 
     (
         m2c_magento notty config:set --scope=default --scope-code=0 catalog/search/engine \
             elasticsearch${version/2/} && \
         m2c_magento notty config:set --scope=default --scope-code=0 \
             catalog/search/elasticsearch${version/2/}_server_hostname \
-            ${M2C_CFG_DOMAIN_NAME}__elasticsearch
+            ${E2C_CFG_DOMAIN_NAME}__elasticsearch
     ) >"$m2c_log" 2>&1
 
     return $?
 }
 
 m2c_elasticsearch_reset() {
-    local version=${M2C_CFG_ELASTICSEARCH:0:1}
+    local version=${E2C_CFG_ELASTICSEARCH:0:1}
 
     (
         m2c_magento notty config:set --scope=default --scope-code=0 catalog/search/engine mysql && \
@@ -145,28 +145,28 @@ m2c_set_opt_version() {
 
     case "$name" in
         "Magento")
-            M2C_CFG_MAGENTO="$m2c_res"
+            E2C_CFG_MAGENTO="$m2c_res"
         ;;
         "Nginx")
-            M2C_CFG_NGINX="$m2c_res"
+            E2C_CFG_NGINX="$m2c_res"
         ;;
         "PHP")
-            M2C_CFG_PHP="$m2c_res"
+            E2C_CFG_PHP="$m2c_res"
         ;;
         "MariaDB")
-            M2C_CFG_MARIADB="$m2c_res"
+            E2C_CFG_MARIADB="$m2c_res"
         ;;
         "Redis")
-            M2C_CFG_REDIS="$m2c_res"
+            E2C_CFG_REDIS="$m2c_res"
         ;;
         "Varnish")
-            M2C_CFG_VARNISH="$m2c_res"
+            E2C_CFG_VARNISH="$m2c_res"
         ;;
         "Elasticsearch")
-            M2C_CFG_ELASTICSEARCH="$m2c_res"
+            E2C_CFG_ELASTICSEARCH="$m2c_res"
         ;;
         "RabbitMQ")
-            M2C_CFG_RABBITMQ="$m2c_res"
+            E2C_CFG_RABBITMQ="$m2c_res"
         ;;
     esac
 
@@ -182,7 +182,7 @@ m2c_cli() {
         m2c_tty=1
     fi
 
-    docker exec -u app -${m2c_tty:+t}i "${M2C_CFG_DOMAIN_NAME}__php" "$@"
+    docker exec -u app -${m2c_tty:+t}i "${E2C_CFG_DOMAIN_NAME}__php" "$@"
 }
 
 m2c_bash() {
@@ -194,7 +194,7 @@ m2c_bash() {
         m2c_tty=1
     fi
 
-    docker exec -u app -${m2c_tty:+t}i "${M2C_CFG_DOMAIN_NAME}__php" bash "$@"
+    docker exec -u app -${m2c_tty:+t}i "${E2C_CFG_DOMAIN_NAME}__php" bash "$@"
 }
 
 m2c_composer() {
@@ -206,7 +206,7 @@ m2c_composer() {
         m2c_tty=1
     fi
 
-    docker exec -u app -${m2c_tty:+t}i "${M2C_CFG_DOMAIN_NAME}__php" composer "$@"
+    docker exec -u app -${m2c_tty:+t}i "${E2C_CFG_DOMAIN_NAME}__php" composer "$@"
 
     if [[ "$m2c_os" == "darwin" ]]
     then
@@ -253,8 +253,8 @@ m2c_db_mysql() {
         m2c_tty=1
     fi
 
-    docker exec -${m2c_tty:+t}i "${M2C_CFG_DOMAIN_NAME}__db" mysql \
-        -hdb -u"$M2C_CFG_MYSQL_USER" -p"$M2C_CFG_MYSQL_PASSWORD" "$M2C_CFG_MYSQL_DATABASE" "$@"
+    docker exec -${m2c_tty:+t}i "${E2C_CFG_DOMAIN_NAME}__db" mysql \
+        -hdb -u"$E2C_CFG_MYSQL_USER" -p"$E2C_CFG_MYSQL_PASSWORD" "$E2C_CFG_MYSQL_DATABASE" "$@"
 }
 
 m2c_db_shell() {
@@ -265,7 +265,7 @@ m2c_db_shell() {
     else
         m2c_tty=1
     fi
-    docker exec -${m2c_tty:+t}i "${M2C_CFG_DOMAIN_NAME}__db" /bin/sh "$@"
+    docker exec -${m2c_tty:+t}i "${E2C_CFG_DOMAIN_NAME}__db" /bin/sh "$@"
 }
 
 m2c_db_mysqldump() {
@@ -277,8 +277,8 @@ m2c_db_mysqldump() {
         m2c_tty=1
     fi
 
-    docker exec -${m2c_tty:+t}i "${M2C_CFG_DOMAIN_NAME}__db" mysqldump \
-        -hdb -u"$M2C_CFG_MYSQL_USER" -p"$M2C_CFG_MYSQL_PASSWORD" "$M2C_CFG_MYSQL_DATABASE" "$@"
+    docker exec -${m2c_tty:+t}i "${E2C_CFG_DOMAIN_NAME}__db" mysqldump \
+        -hdb -u"$E2C_CFG_MYSQL_USER" -p"$E2C_CFG_MYSQL_PASSWORD" "$E2C_CFG_MYSQL_DATABASE" "$@"
 }
 
 m2c_db_import() {
@@ -313,8 +313,8 @@ m2c_db_import() {
 
         m2c_msg "Setting the project domain name........................................  "
         m2c_loading
-        m2c_magento notty config:set web/secure/base_url "https://$M2C_CFG_DOMAIN_NAME/" >"$m2c_log" 2>&1 && \
-        m2c_magento notty config:set web/unsecure/base_url "https://$M2C_CFG_DOMAIN_NAME/" >"$m2c_log" 2>&1
+        m2c_magento notty config:set web/secure/base_url "https://$E2C_CFG_DOMAIN_NAME/" >"$m2c_log" 2>&1 && \
+        m2c_magento notty config:set web/unsecure/base_url "https://$E2C_CFG_DOMAIN_NAME/" >"$m2c_log" 2>&1
         m2c_result $?
     elif [[ -n ${file} ]]
     then
@@ -713,7 +713,7 @@ m2c_grunt() {
         m2c_tty=1
     fi
 
-    docker exec -u app -${m2c_tty:+t}i "${M2C_CFG_DOMAIN_NAME}__php" grunt "$@"
+    docker exec -u app -${m2c_tty:+t}i "${E2C_CFG_DOMAIN_NAME}__php" grunt "$@"
 }
 
 m2c_npm() {
@@ -725,7 +725,7 @@ m2c_npm() {
         m2c_tty=1
     fi
 
-    docker exec -u app -${m2c_tty:+t}i "${M2C_CFG_DOMAIN_NAME}__php" npm "$@"
+    docker exec -u app -${m2c_tty:+t}i "${E2C_CFG_DOMAIN_NAME}__php" npm "$@"
 }
 
 m2c_node() {
@@ -737,11 +737,11 @@ m2c_node() {
         m2c_tty=1
     fi
 
-    docker exec -u app -${m2c_tty:+t}i "${M2C_CFG_DOMAIN_NAME}__php" grunt "$@"
+    docker exec -u app -${m2c_tty:+t}i "${E2C_CFG_DOMAIN_NAME}__php" grunt "$@"
 }
 
 m2c_redis() {
-    docker-compose exec "${M2C_CFG_DOMAIN_NAME}__redis" "$@"
+    docker-compose exec "${E2C_CFG_DOMAIN_NAME}__redis" "$@"
 }
 
 m2c_urn() {
@@ -759,9 +759,9 @@ m2c_urn() {
     sed -i .prev -e 's?/var/www/html?'$m2c_project_dir'?g' \
             "$m2c_project_dir/.idea/misc.xml"
 
-    if [[ -n ${M2C_CFG_MAGENTO_SRC} ]] && [[ -d "$m2c_project_dir/${M2C_CFG_MAGENTO_SRC}/.idea" ]]
+    if [[ -n ${E2C_CFG_MAGENTO_SRC} ]] && [[ -d "$m2c_project_dir/${E2C_CFG_MAGENTO_SRC}/.idea" ]]
     then
-        yes | cp -rf "$m2c_project_dir/.idea/misc.xml" "$m2c_project_dir/${M2C_CFG_MAGENTO_SRC}/.idea"
+        yes | cp -rf "$m2c_project_dir/.idea/misc.xml" "$m2c_project_dir/${E2C_CFG_MAGENTO_SRC}/.idea"
     fi
 
     m2c_cli notty rm -rf .idea >/dev/null 2>&1
@@ -925,7 +925,7 @@ m2c_init() {
                                 exit 1
                             fi
 
-                            M2C_CFG_DOMAIN_NAME="$value"
+                            E2C_CFG_DOMAIN_NAME="$value"
                         ;;
                         --magento-admin-url|--magento-admin-url=*)
                             if [[ "$param" == "--magento-admin-url" ]]
@@ -942,7 +942,7 @@ m2c_init() {
                                 exit 1
                             fi
 
-                            M2C_CFG_ADMIN_URL="$value"
+                            E2C_CFG_ADMIN_URL="$value"
                         ;;
                         --magento-sub-dir|--magento-sub-dir=*)
                             if [[ "$param" == "--magento-sub-dir" ]]
@@ -959,7 +959,7 @@ m2c_init() {
                                 exit 1
                             fi
 
-                            M2C_CFG_MAGENTO_SRC="$value"
+                            E2C_CFG_MAGENTO_SRC="$value"
                         ;;
                         --nginx-version|--nginx-version=*)
                             if [[ "$param" == "--nginx-version" ]]
@@ -972,7 +972,7 @@ m2c_init() {
 
                             m2c_init_check_version "Nginx" "$value" "${m2c_nginx_versions[@]}"
 
-                            M2C_CFG_NGINX="$value"
+                            E2C_CFG_NGINX="$value"
                         ;;
                         --php-version|--php-version=*)
                             if [[ "$param" == "--php-version" ]]
@@ -985,7 +985,7 @@ m2c_init() {
 
                             m2c_init_check_version "PHP" "$value" "${m2c_php_versions[@]}"
 
-                            M2C_CFG_PHP="$value"
+                            E2C_CFG_PHP="$value"
                         ;;
                         --mariadb-version|--mariadb-version=*)
                             if [[ "$param" == "--mariadb-version" ]]
@@ -998,7 +998,7 @@ m2c_init() {
 
                             m2c_init_check_version "MariaDB" "$value" "${m2c_mariadb_versions[@]}"
 
-                            M2C_CFG_MARIADB="$value"
+                            E2C_CFG_MARIADB="$value"
                         ;;
                         --redis-version|--redis-version=*)
                             if [[ "$param" == "--redis-version" ]]
@@ -1011,7 +1011,7 @@ m2c_init() {
 
                             m2c_init_check_version "Redis" "$value" "${m2c_redis_versions[@]}"
 
-                            M2C_CFG_REDIS="$value"
+                            E2C_CFG_REDIS="$value"
                         ;;
                         --varnish-version|--varnish-version=*)
                             if [[ "$param" == "--varnish-version" ]]
@@ -1024,7 +1024,7 @@ m2c_init() {
 
                             m2c_init_check_version "Varnish" "$value" "${m2c_varnish_versions[@]}"
 
-                            M2C_CFG_VARNISH="$value"
+                            E2C_CFG_VARNISH="$value"
                         ;;
                         --elasticsearch-version|--elasticsearch-version=*)
                             if [[ "$param" == "--elasticsearch-version" ]]
@@ -1037,7 +1037,7 @@ m2c_init() {
 
                             m2c_init_check_version "Elasticsearch" "$value" "${m2c_elasticsearch_versions[@]}"
 
-                            M2C_CFG_ELASTICSEARCH="$value"
+                            E2C_CFG_ELASTICSEARCH="$value"
                         ;;
                         --rabbitmq-version|--rabbitmq-version=*)
                             if [[ "$param" == "--rabbitmq-version" ]]
@@ -1050,7 +1050,7 @@ m2c_init() {
 
                             m2c_init_check_version "RabbitMQ" "$value" "${m2c_rabbitmq_versions[@]}"
 
-                            M2C_CFG_RABBITMQ="$value"
+                            E2C_CFG_RABBITMQ="$value"
                         ;;
                         --magento-version|--magento-version=*)
                             if [[ "$param" == "--magento-version" ]]
@@ -1063,7 +1063,7 @@ m2c_init() {
 
                             m2c_init_check_version "Magento" "$value" "${m2c_magento_versions[@]}"
 
-                            M2C_CFG_MAGENTO="$value"
+                            E2C_CFG_MAGENTO="$value"
                         ;;
                         --magento-import-db|--magento-import-db=*)
                             if [[ "$param" == "--magento-import-db" ]]
@@ -1084,7 +1084,7 @@ m2c_init() {
                             m2c_magento_db_import="$value"
                         ;;
                         --phpmyadmin)
-                            M2C_CFG_PHPMYADMIN=1
+                            E2C_CFG_PHPMYADMIN=1
                         ;;
                         --magento-sample-data)
                             m2c_magento_sample_data=1
@@ -1123,7 +1123,7 @@ m2c_init() {
                          "" \
                          m2c_validate_domain
 
-            M2C_CFG_DOMAIN_NAME="$m2c_res"
+            E2C_CFG_DOMAIN_NAME="$m2c_res"
 
             m2c_set_opt_version "Nginx" "${m2c_nginx_versions[@]}"
 
@@ -1136,38 +1136,38 @@ m2c_init() {
             m2c_info_bold "\n[Configure project extras]\n\n"
 
             m2c_ask_bool "Include Varnish service?"
-            M2C_CFG_VARNISH=${m2c_res}
+            E2C_CFG_VARNISH=${m2c_res}
 
-            if [[ -n ${M2C_CFG_VARNISH} ]]
+            if [[ -n ${E2C_CFG_VARNISH} ]]
             then
                 m2c_set_opt_version "Varnish" "${m2c_varnish_versions[@]}"
             fi
 
             m2c_ask_bool "Include Elasticsearch service?"
-            M2C_CFG_ELASTICSEARCH=${m2c_res}
+            E2C_CFG_ELASTICSEARCH=${m2c_res}
 
-            if [[ -n ${M2C_CFG_ELASTICSEARCH} ]]
+            if [[ -n ${E2C_CFG_ELASTICSEARCH} ]]
             then
                 m2c_set_opt_version "Elasticsearch" "${m2c_elasticsearch_versions[@]}"
             fi
 
             m2c_ask_bool "Include RabbitMQ service?"
-            M2C_CFG_RABBITMQ=${m2c_res}
+            E2C_CFG_RABBITMQ=${m2c_res}
 
-            if [[ -n ${M2C_CFG_RABBITMQ} ]]
+            if [[ -n ${E2C_CFG_RABBITMQ} ]]
             then
                 m2c_set_opt_version "RabbitMQ" "${m2c_rabbitmq_versions[@]}"
             fi
 
             m2c_ask_bool "Include phpMyAdmin service?"
-            M2C_CFG_PHPMYADMIN=${m2c_res}
+            E2C_CFG_PHPMYADMIN=${m2c_res}
 
             m2c_info_bold "\n[Configure Magento installation]\n\n"
 
             m2c_ask_bool "Use sub-directory for Magento installation?"
-            M2C_CFG_MAGENTO_SRC=${m2c_res}
+            E2C_CFG_MAGENTO_SRC=${m2c_res}
 
-            if [[ -n ${M2C_CFG_MAGENTO_SRC} ]]
+            if [[ -n ${E2C_CFG_MAGENTO_SRC} ]]
             then
                 m2c_ask_text "Set the sub-directory name:" \
                      "src" \
@@ -1175,7 +1175,7 @@ m2c_init() {
                      "" \
                      m2c_validate_url_path
 
-                M2C_CFG_MAGENTO_SRC="$m2c_res"
+                E2C_CFG_MAGENTO_SRC="$m2c_res"
             fi
 
             if m2c_init_detect_magento
@@ -1183,12 +1183,12 @@ m2c_init() {
                 m2c_magento_exists=1
             fi
 
-            if [[ -z ${M2C_CFG_MAGENTO} ]]
+            if [[ -z ${E2C_CFG_MAGENTO} ]]
             then
                 m2c_set_opt_version "Magento" "${m2c_magento_versions[@]}"
             fi
 
-            if [[ "${M2C_CFG_MAGENTO:0:1}" == "2" ]]
+            if [[ "${E2C_CFG_MAGENTO:0:1}" == "2" ]]
             then
                 m2c_ask_bool "Include Magento sample data?"
                 m2c_magento_sample_data=${m2c_res}
@@ -1200,7 +1200,7 @@ m2c_init() {
                          "" \
                          m2c_validate_url_path
 
-            M2C_CFG_ADMIN_URL="$m2c_res"
+            E2C_CFG_ADMIN_URL="$m2c_res"
 
             m2c_save_project_env
         else
@@ -1255,14 +1255,14 @@ m2c_init() {
     then
         m2c_info_bold "\n[Downloading magento sources]\n\n"
 
-        url="http://pubfiles.nexcess.net/magento/ce-packages/magento$([[ "${M2C_CFG_MAGENTO:0:1}" == "2" ]] && \
-            echo "2")$([[ -n ${m2c_magento_sample_data} && "${M2C_CFG_MAGENTO:0:1}" == "2" ]] && \
-            echo "-with-samples")-$M2C_CFG_MAGENTO.tar.gz"
+        url="http://pubfiles.nexcess.net/magento/ce-packages/magento$([[ "${E2C_CFG_MAGENTO:0:1}" == "2" ]] && \
+            echo "2")$([[ -n ${m2c_magento_sample_data} && "${E2C_CFG_MAGENTO:0:1}" == "2" ]] && \
+            echo "-with-samples")-$E2C_CFG_MAGENTO.tar.gz"
 
-        if [[ -n ${M2C_CFG_MAGENTO_SRC} ]]
+        if [[ -n ${E2C_CFG_MAGENTO_SRC} ]]
         then
-            mkdir -p "$m2c_project_dir/$M2C_CFG_MAGENTO_SRC"
-            curl -L "$url" | tar xzf - -o -C "$m2c_project_dir/$M2C_CFG_MAGENTO_SRC"
+            mkdir -p "$m2c_project_dir/$E2C_CFG_MAGENTO_SRC"
+            curl -L "$url" | tar xzf - -o -C "$m2c_project_dir/$E2C_CFG_MAGENTO_SRC"
         else
             curl -L "$url" | tar xzf - -o -C "$m2c_project_dir"
         fi
@@ -1289,32 +1289,32 @@ m2c_init() {
 
         m2c_magento notty setup:install \
                 --db-host=db \
-                --db-name=${M2C_CFG_MYSQL_DATABASE} \
-                --db-user=${M2C_CFG_MYSQL_USER} \
-                --db-password=${M2C_CFG_MYSQL_PASSWORD} \
-                --base-url=https://${M2C_CFG_DOMAIN_NAME}/ \
-                --admin-firstname=${M2C_CFG_ADMIN_FIRSTNAME} \
-                --admin-lastname=${M2C_CFG_ADMIN_LASTNAME} \
-                --admin-email=${M2C_CFG_ADMIN_EMAIL} \
-                --admin-user=${M2C_CFG_ADMIN_USERNAME} \
-                --admin-password=${M2C_CFG_ADMIN_PASSWORD} \
-                --backend-frontname=${M2C_CFG_ADMIN_URL} \
-                --language=${M2C_CFG_LOCALE} \
-                --currency=${M2C_CFG_CURRENCY} \
-                --timezone=${M2C_CFG_TIMEZONE} \
+                --db-name=${E2C_CFG_MYSQL_DATABASE} \
+                --db-user=${E2C_CFG_MYSQL_USER} \
+                --db-password=${E2C_CFG_MYSQL_PASSWORD} \
+                --base-url=https://${E2C_CFG_DOMAIN_NAME}/ \
+                --admin-firstname=${E2C_CFG_ADMIN_FIRSTNAME} \
+                --admin-lastname=${E2C_CFG_ADMIN_LASTNAME} \
+                --admin-email=${E2C_CFG_ADMIN_EMAIL} \
+                --admin-user=${E2C_CFG_ADMIN_USERNAME} \
+                --admin-password=${E2C_CFG_ADMIN_PASSWORD} \
+                --backend-frontname=${E2C_CFG_ADMIN_URL} \
+                --language=${E2C_CFG_LOCALE} \
+                --currency=${E2C_CFG_CURRENCY} \
+                --timezone=${E2C_CFG_TIMEZONE} \
                 --use-rewrites=1 >"$m2c_log" 2>&1 && \
         m2c_magento notty config:set trans_email/ident_general/email \
-            "owner@$M2C_CFG_DOMAIN_NAME" >"$m2c_log" 2>&1 && \
+            "owner@$E2C_CFG_DOMAIN_NAME" >"$m2c_log" 2>&1 && \
         m2c_magento notty config:set trans_email/ident_sales/email \
-            "sales@$M2C_CFG_DOMAIN_NAME" >"$m2c_log" 2>&1 && \
+            "sales@$E2C_CFG_DOMAIN_NAME" >"$m2c_log" 2>&1 && \
         m2c_magento notty config:set trans_email/ident_support/email \
-            "support@$M2C_CFG_DOMAIN_NAME" >"$m2c_log" 2>&1 && \
+            "support@$E2C_CFG_DOMAIN_NAME" >"$m2c_log" 2>&1 && \
         m2c_magento notty config:set trans_email/ident_custom1/email \
-            "custom1@$M2C_CFG_DOMAIN_NAME" >"$m2c_log" 2>&1 && \
+            "custom1@$E2C_CFG_DOMAIN_NAME" >"$m2c_log" 2>&1 && \
         m2c_magento notty config:set trans_email/ident_custom2/email \
-            "custom2@$M2C_CFG_DOMAIN_NAME" >"$m2c_log" 2>&1 && \
+            "custom2@$E2C_CFG_DOMAIN_NAME" >"$m2c_log" 2>&1 && \
         m2c_magento notty config:set contact/email/recipient_email \
-            "hello@$M2C_CFG_DOMAIN_NAME" >"$m2c_log" 2>&1
+            "hello@$E2C_CFG_DOMAIN_NAME" >"$m2c_log" 2>&1
         m2c_result $?
     fi
 
@@ -1336,11 +1336,11 @@ m2c_init() {
     m2c_loading
     (
         sed -e 's/fastcgi_backend/$fastcgi_backend/g' \
-            "$m2c_project_dir${M2C_CFG_MAGENTO_SRC:+/${M2C_CFG_MAGENTO_SRC}}/nginx.conf.sample" > \
-            "$m2c_project_dir${M2C_CFG_MAGENTO_SRC:+/${M2C_CFG_MAGENTO_SRC}}/nginx.conf" && \
-        docker cp "$m2c_project_dir${M2C_CFG_MAGENTO_SRC:+/${M2C_CFG_MAGENTO_SRC}}/nginx.conf" \
-            "${M2C_CFG_DOMAIN_NAME}__php":/var/www/html/nginx.conf && \
-        docker exec "${M2C_CFG_DOMAIN_NAME}__php" chown -R app:app nginx.conf && \
+            "$m2c_project_dir${E2C_CFG_MAGENTO_SRC:+/${E2C_CFG_MAGENTO_SRC}}/nginx.conf.sample" > \
+            "$m2c_project_dir${E2C_CFG_MAGENTO_SRC:+/${E2C_CFG_MAGENTO_SRC}}/nginx.conf" && \
+        docker cp "$m2c_project_dir${E2C_CFG_MAGENTO_SRC:+/${E2C_CFG_MAGENTO_SRC}}/nginx.conf" \
+            "${E2C_CFG_DOMAIN_NAME}__php":/var/www/html/nginx.conf && \
+        docker exec "${E2C_CFG_DOMAIN_NAME}__php" chown -R app:app nginx.conf && \
         m2c_local_container_restart nginx
     ) >"$m2c_log" 2>&1
     m2c_result $?
@@ -1350,7 +1350,7 @@ m2c_init() {
     m2c_redis_configure
     m2c_result $?
 
-    if [[ -n ${M2C_CFG_ELASTICSEARCH} ]]
+    if [[ -n ${E2C_CFG_ELASTICSEARCH} ]]
     then
         m2c_msg "Configuring Elasticsearch..............................................  "
         m2c_loading
@@ -1358,7 +1358,7 @@ m2c_init() {
         m2c_result $?
     fi
 
-    if [[ -n ${M2C_CFG_VARNISH} ]]
+    if [[ -n ${E2C_CFG_VARNISH} ]]
     then
         m2c_msg "Configuring Varnish....................................................  "
         m2c_loading
@@ -1366,7 +1366,7 @@ m2c_init() {
         m2c_result $?
     fi
 
-    if [[ "${M2C_CFG_MAGENTO:0:1}" == "2" ]]
+    if [[ "${E2C_CFG_MAGENTO:0:1}" == "2" ]]
     then
         m2c_msg "Forcing deploy of static content.......................................  "
         m2c_loading
@@ -1376,11 +1376,11 @@ m2c_init() {
         m2c_msg "Installing Magento node modules dependencies...........................  "
         m2c_loading
         (
-            yes | cp -rf "$m2c_project_dir${M2C_CFG_MAGENTO_SRC:+/${M2C_CFG_MAGENTO_SRC}}/package.json.sample" \
-                "$m2c_project_dir${M2C_CFG_MAGENTO_SRC:+/${M2C_CFG_MAGENTO_SRC}}/package.json" && \
-            docker cp "$m2c_project_dir${M2C_CFG_MAGENTO_SRC:+/${M2C_CFG_MAGENTO_SRC}}/package.json" \
-                "${M2C_CFG_DOMAIN_NAME}__php":/var/www/html/package.json && \
-            docker exec "${M2C_CFG_DOMAIN_NAME}__php" chown -R app:app package.json && \
+            yes | cp -rf "$m2c_project_dir${E2C_CFG_MAGENTO_SRC:+/${E2C_CFG_MAGENTO_SRC}}/package.json.sample" \
+                "$m2c_project_dir${E2C_CFG_MAGENTO_SRC:+/${E2C_CFG_MAGENTO_SRC}}/package.json" && \
+            docker cp "$m2c_project_dir${E2C_CFG_MAGENTO_SRC:+/${E2C_CFG_MAGENTO_SRC}}/package.json" \
+                "${E2C_CFG_DOMAIN_NAME}__php":/var/www/html/package.json && \
+            docker exec "${E2C_CFG_DOMAIN_NAME}__php" chown -R app:app package.json && \
             m2c_npm install
         ) >"$m2c_log" 2>&1
         m2c_result $?
@@ -1394,7 +1394,7 @@ m2c_init() {
         m2c_result $?
     fi
 
-    m2c_sign ${M2C_CFG_DOMAIN_NAME}
+    m2c_sign ${E2C_CFG_DOMAIN_NAME}
 
     if [[ "$m2c_os" == "darwin" ]]
     then
@@ -1431,17 +1431,17 @@ m2c_init_check_version() {
 m2c_init_detect_magento() {
     local exists=
 
-    if [[ -f "$m2c_project_dir${M2C_CFG_MAGENTO_SRC:+/${M2C_CFG_MAGENTO_SRC}}/pub/index.php" && -f "$m2c_project_dir${M2C_CFG_MAGENTO_SRC:+/${M2C_CFG_MAGENTO_SRC}}/composer.json" ]]
+    if [[ -f "$m2c_project_dir${E2C_CFG_MAGENTO_SRC:+/${E2C_CFG_MAGENTO_SRC}}/pub/index.php" && -f "$m2c_project_dir${E2C_CFG_MAGENTO_SRC:+/${E2C_CFG_MAGENTO_SRC}}/composer.json" ]]
     then
         m2c_msg "Checking magento source files..........................................  "
         m2c_loading && m2c_result 0
 
-        version=$(echo $(grep version "$m2c_project_dir${M2C_CFG_MAGENTO_SRC:+/${M2C_CFG_MAGENTO_SRC}}/composer.json" | cut -c 17- | rev | cut -c 3- | rev 2>/dev/null))
+        version=$(echo $(grep version "$m2c_project_dir${E2C_CFG_MAGENTO_SRC:+/${E2C_CFG_MAGENTO_SRC}}/composer.json" | cut -c 17- | rev | cut -c 3- | rev 2>/dev/null))
 
         if [[ -n ${version} ]]
         then
             m2c_msg "Detected Magento v$version................................................  "
-            M2C_CFG_MAGENTO="$version"
+            E2C_CFG_MAGENTO="$version"
             m2c_loading && m2c_result 0
             return 0
         else
@@ -1454,7 +1454,7 @@ m2c_init_detect_magento() {
 }
 
 m2c_init_composer_auth() {
-    if [[ "${M2C_CFG_MAGENTO:0:1}" == "2" ]]
+    if [[ "${E2C_CFG_MAGENTO:0:1}" == "2" ]]
     then
         m2c_info_bold "\n[Configure Composer auth]\n\n"
 
@@ -1601,10 +1601,10 @@ m2c_local() {
                         shift
                     ;;
                     nginx|php|xdebug|db|redis|varnish|elasticsearch|phpmyadmin|rabbitmq)
-                        if ! [[ "$1" == "varnish" && -z ${M2C_CFG_VARNISH} || \
-                                "$1" == "elasticsearch" && -z ${M2C_CFG_ELASTICSEARCH} || \
-                                "$1" == "phpmyadmin" && -z ${M2C_CFG_PHPMYADMIN} || \
-                                "$1" == "rabbitmq" && -z ${M2C_CFG_RABBITMQ} ]]
+                        if ! [[ "$1" == "varnish" && -z ${E2C_CFG_VARNISH} || \
+                                "$1" == "elasticsearch" && -z ${E2C_CFG_ELASTICSEARCH} || \
+                                "$1" == "phpmyadmin" && -z ${E2C_CFG_PHPMYADMIN} || \
+                                "$1" == "rabbitmq" && -z ${E2C_CFG_RABBITMQ} ]]
                         then
                             m2c_local_service+=("$1")
                         fi
@@ -1629,10 +1629,10 @@ m2c_local() {
                     for i in "${!m2c_local_existing_services[@]}"
                     do
                         if [[ "$m2c_local_command" == "remove" ]] || ! [[ \
-                                "${m2c_local_services[$i]}" == "varnish" && -z ${M2C_CFG_VARNISH} || \
-                                "${m2c_local_services[$i]}" == "elasticsearch" && -z ${M2C_CFG_ELASTICSEARCH} || \
-                                "${m2c_local_services[$i]}" == "phpmyadmin" && -z ${M2C_CFG_PHPMYADMIN} || \
-                                "${m2c_local_services[$i]}" == "rabbitmq" && -z ${M2C_CFG_RABBITMQ} ]]
+                                "${m2c_local_services[$i]}" == "varnish" && -z ${E2C_CFG_VARNISH} || \
+                                "${m2c_local_services[$i]}" == "elasticsearch" && -z ${E2C_CFG_ELASTICSEARCH} || \
+                                "${m2c_local_services[$i]}" == "phpmyadmin" && -z ${E2C_CFG_PHPMYADMIN} || \
+                                "${m2c_local_services[$i]}" == "rabbitmq" && -z ${E2C_CFG_RABBITMQ} ]]
                         then
                             m2c_local_service+=("${m2c_local_existing_services[$i]}")
                         fi
@@ -1662,9 +1662,9 @@ m2c_local_add() {
     case "$@" in
         varnish)
             m2c_ask_bool "Add Varnish service?"
-            M2C_CFG_VARNISH=${m2c_res}
+            E2C_CFG_VARNISH=${m2c_res}
 
-            if [[ -n ${M2C_CFG_VARNISH} ]]
+            if [[ -n ${E2C_CFG_VARNISH} ]]
             then
                 m2c_set_opt_version "Varnish" "${m2c_varnish_versions[@]}"
 
@@ -1682,9 +1682,9 @@ m2c_local_add() {
         ;;
         elasticsearch)
             m2c_ask_bool "Add Elasticsearch service?"
-            M2C_CFG_ELASTICSEARCH=${m2c_res}
+            E2C_CFG_ELASTICSEARCH=${m2c_res}
 
-            if [[ -n ${M2C_CFG_ELASTICSEARCH} ]]
+            if [[ -n ${E2C_CFG_ELASTICSEARCH} ]]
             then
                 m2c_set_opt_version "Elasticsearch" "${m2c_elasticsearch_versions[@]}"
 
@@ -1702,9 +1702,9 @@ m2c_local_add() {
         ;;
         rabbitmq)
             m2c_ask_bool "Add RabbitMQ service?"
-            M2C_CFG_RABBITMQ=${m2c_res}
+            E2C_CFG_RABBITMQ=${m2c_res}
 
-            if [[ -n ${M2C_CFG_RABBITMQ} ]]
+            if [[ -n ${E2C_CFG_RABBITMQ} ]]
             then
                 m2c_set_opt_version "RabbitMQ" "${m2c_rabbitmq_versions[@]}"
 
@@ -1715,9 +1715,9 @@ m2c_local_add() {
         ;;
         phpmyadmin)
             m2c_ask_bool "Add phpMyAdmin service?"
-            M2C_CFG_PHPMYADMIN=${m2c_res}
+            E2C_CFG_PHPMYADMIN=${m2c_res}
 
-            if [[ -n ${M2C_CFG_PHPMYADMIN} ]]
+            if [[ -n ${E2C_CFG_PHPMYADMIN} ]]
             then
                 m2c_save_project_env
                 m2c_local up
@@ -1746,7 +1746,7 @@ m2c_local_remove() {
                 m2c_varnish_reset
                 m2c_result $?
 
-                M2C_CFG_VARNISH=
+                E2C_CFG_VARNISH=
             fi
         ;;
         elasticsearch)
@@ -1762,7 +1762,7 @@ m2c_local_remove() {
                 m2c_elasticsearch_reset
                 m2c_result $?
 
-                M2C_CFG_ELASTICSEARCH=
+                E2C_CFG_ELASTICSEARCH=
             fi
         ;;
         rabbitmq)
@@ -1771,7 +1771,7 @@ m2c_local_remove() {
 
             if [[ "$m2c_res" == "1" ]]
             then
-                M2C_CFG_RABBITMQ=
+                E2C_CFG_RABBITMQ=
             fi
         ;;
         phpmyadmin)
@@ -1780,7 +1780,7 @@ m2c_local_remove() {
 
             if [[ "$m2c_res" == "1" ]]
             then
-                M2C_CFG_PHPMYADMIN=
+                E2C_CFG_PHPMYADMIN=
             fi
         ;;
         *)
@@ -1803,7 +1803,7 @@ m2c_local_remove() {
 
 
 m2c_local_logs() {
-    docker logs --follow "${M2C_CFG_DOMAIN_NAME}__$@"
+    docker logs --follow "${E2C_CFG_DOMAIN_NAME}__$@"
 }
 
 m2c_local_update() {
@@ -1834,7 +1834,7 @@ m2c_local_container_id() {
     local service="$1"
 
     echo "$(docker ps \
-            --filter "label=com.docker.compose.project=${M2C_CFG_DOMAIN_NAME/.test/}" \
+            --filter "label=com.docker.compose.project=${E2C_CFG_DOMAIN_NAME/.test/}" \
             --filter "label=com.docker.compose.service=$service" \
             -qa)"
 }
@@ -1843,7 +1843,7 @@ m2c_local_active_container_id() {
     local service="$1"
 
     echo "$(docker ps \
-            --filter "label=com.docker.compose.project=${M2C_CFG_DOMAIN_NAME/.test/}" \
+            --filter "label=com.docker.compose.project=${E2C_CFG_DOMAIN_NAME/.test/}" \
             --filter "label=com.docker.compose.service=$service" \
             -q)"
 }
@@ -1854,7 +1854,7 @@ m2c_local_container_start() {
     if [[ -n ${service} ]]
     then
         docker start $(docker ps \
-            --filter "label=com.docker.compose.project=${M2C_CFG_DOMAIN_NAME/.test/}" \
+            --filter "label=com.docker.compose.project=${E2C_CFG_DOMAIN_NAME/.test/}" \
             --filter "label=com.docker.compose.service=$service" \
             -qa) >"$m2c_log" 2>&1
 
@@ -1870,7 +1870,7 @@ m2c_local_container_restart() {
     if [[ -n ${service} ]]
     then
         docker restart $(docker ps \
-            --filter "label=com.docker.compose.project=${M2C_CFG_DOMAIN_NAME/.test/}" \
+            --filter "label=com.docker.compose.project=${E2C_CFG_DOMAIN_NAME/.test/}" \
             --filter "label=com.docker.compose.service=$service" \
             -qa) >"$m2c_log" 2>&1
 
@@ -1886,7 +1886,7 @@ m2c_local_container_stop() {
     if [[ -n ${service} ]]
     then
         docker stop $(docker ps \
-            --filter "label=com.docker.compose.project=${M2C_CFG_DOMAIN_NAME/.test/}" \
+            --filter "label=com.docker.compose.project=${E2C_CFG_DOMAIN_NAME/.test/}" \
             --filter "label=com.docker.compose.service=$service" \
             -qa) >"$m2c_log" 2>&1
 
@@ -1902,7 +1902,7 @@ m2c_local_container_remove() {
     if [[ -n ${service} ]]
     then
         docker rm -vf $(docker ps \
-            --filter "label=com.docker.compose.project=${M2C_CFG_DOMAIN_NAME/.test/}" \
+            --filter "label=com.docker.compose.project=${E2C_CFG_DOMAIN_NAME/.test/}" \
             --filter "label=com.docker.compose.service=$service" \
             -qa) >"$m2c_log" 2>&1
 
@@ -1913,7 +1913,7 @@ m2c_local_container_remove() {
 }
 
 m2c_local_info() {
-    local project="${M2C_CFG_DOMAIN_NAME/.test/}"
+    local project="${E2C_CFG_DOMAIN_NAME/.test/}"
     local spaces="$(printf "%-${#project}s" " ")"
     local containers="$(docker ps \
             --filter "label=com.docker.compose.project=${project}" \
@@ -1952,12 +1952,12 @@ m2c_local_project_up() {
     then
         cd "$m2c_project_dir/.m2c/docker/"
 
-        docker-compose --project-name "${M2C_CFG_DOMAIN_NAME/.test/}" \
+        docker-compose --project-name "${E2C_CFG_DOMAIN_NAME/.test/}" \
             --file docker-compose.yml \
-            --file docker-compose.$([[ -n ${M2C_CFG_VARNISH} ]] && echo "varnish" || echo "nginx").yml \
-            ${M2C_CFG_PHPMYADMIN:+--file docker-compose.phpmyadmin.yml} \
-            ${M2C_CFG_ELASTICSEARCH:+--file docker-compose.elasticsearch.yml} \
-            ${M2C_CFG_RABBITMQ:+--file docker-compose.rabbitmq.yml} \
+            --file docker-compose.$([[ -n ${E2C_CFG_VARNISH} ]] && echo "varnish" || echo "nginx").yml \
+            ${E2C_CFG_PHPMYADMIN:+--file docker-compose.phpmyadmin.yml} \
+            ${E2C_CFG_ELASTICSEARCH:+--file docker-compose.elasticsearch.yml} \
+            ${E2C_CFG_RABBITMQ:+--file docker-compose.rabbitmq.yml} \
             --file docker-compose.${m2c_os}.yml \
             up --detach --force-recreate --no-color "$service" >"$m2c_log" 2>&1
 
@@ -1970,12 +1970,12 @@ m2c_local_project_up() {
 m2c_local_list_services() {
     cd "$m2c_project_dir/.m2c/docker/"
 
-    docker-compose --project-name "${M2C_CFG_DOMAIN_NAME/.test/}" \
+    docker-compose --project-name "${E2C_CFG_DOMAIN_NAME/.test/}" \
         --file docker-compose.yml \
-        --file docker-compose.$([[ -n ${M2C_CFG_VARNISH} ]] && echo "varnish" || echo "nginx").yml \
-        ${M2C_CFG_PHPMYADMIN:+--file docker-compose.phpmyadmin.yml} \
-        ${M2C_CFG_ELASTICSEARCH:+--file docker-compose.elasticsearch.yml} \
-        ${M2C_CFG_RABBITMQ:+--file docker-compose.rabbitmq.yml} \
+        --file docker-compose.$([[ -n ${E2C_CFG_VARNISH} ]] && echo "varnish" || echo "nginx").yml \
+        ${E2C_CFG_PHPMYADMIN:+--file docker-compose.phpmyadmin.yml} \
+        ${E2C_CFG_ELASTICSEARCH:+--file docker-compose.elasticsearch.yml} \
+        ${E2C_CFG_RABBITMQ:+--file docker-compose.rabbitmq.yml} \
         --file docker-compose.${m2c_os}.yml \
         ps --services --all
 
@@ -1984,10 +1984,10 @@ m2c_local_list_services() {
 
 m2c_local_project_down() {
     docker rm -vf $(docker ps \
-        --filter "label=com.docker.compose.project=${M2C_CFG_DOMAIN_NAME/.test/}" \
+        --filter "label=com.docker.compose.project=${E2C_CFG_DOMAIN_NAME/.test/}" \
         -qa) >"$m2c_log" 2>&1 && \
     docker network rm $(docker network ls \
-        --filter "label=com.docker.compose.project=${M2C_CFG_DOMAIN_NAME/.test/}" \
+        --filter "label=com.docker.compose.project=${E2C_CFG_DOMAIN_NAME/.test/}" \
         -q) >"$m2c_log" 2>&1
 
     return $?
@@ -2148,7 +2148,7 @@ m2c_magento() {
         m2c_tty=1
     fi
 
-    docker exec -u app -${m2c_tty:+t}i "${M2C_CFG_DOMAIN_NAME}__php" bin/magento "$@"
+    docker exec -u app -${m2c_tty:+t}i "${E2C_CFG_DOMAIN_NAME}__php" bin/magento "$@"
 }
 
 m2c_magerun() {
@@ -2160,8 +2160,8 @@ m2c_magerun() {
         m2c_tty=1
     fi
 
-    docker exec -u app -${m2c_tty:+t}i "${M2C_CFG_DOMAIN_NAME}__php" \
-        "n98-magerun$([[ "${M2C_CFG_MAGENTO:0:1}" == "2" ]] && echo "2")" "$@"
+    docker exec -u app -${m2c_tty:+t}i "${E2C_CFG_DOMAIN_NAME}__php" \
+        "n98-magerun$([[ "${E2C_CFG_MAGENTO:0:1}" == "2" ]] && echo "2")" "$@"
 }
 
 m2c_mutagen() {
@@ -2177,8 +2177,8 @@ m2c_mutagen() {
 
 m2c_pull_exec() {
     local project_dir="${m2c_project_dir}" \
-          sub_dir=${M2C_CFG_MAGENTO_SRC:-} \
-          container="${M2C_CFG_DOMAIN_NAME}__php" \
+          sub_dir=${E2C_CFG_MAGENTO_SRC:-} \
+          container="${E2C_CFG_DOMAIN_NAME}__php" \
           source_path error res
 
     m2c_info_bold "\n[Pull]\n\n"
@@ -2280,8 +2280,8 @@ m2c_pull() {
 
 m2c_push_exec() {
     local project_dir="${m2c_project_dir}" \
-          sub_dir=${M2C_CFG_MAGENTO_SRC:-} \
-          container="${M2C_CFG_DOMAIN_NAME}__php" \
+          sub_dir=${E2C_CFG_MAGENTO_SRC:-} \
+          container="${E2C_CFG_DOMAIN_NAME}__php" \
           source_path error res
 
     m2c_info_bold "\n[Push]\n\n"
@@ -2409,11 +2409,11 @@ m2c_push() {
 m2c_redis_configure() {
     (
         m2c_magento notty setup:config:set --no-interaction --cache-backend=redis \
-                --cache-backend-redis-server=${M2C_CFG_DOMAIN_NAME}__redis --cache-backend-redis-db=0 && \
+                --cache-backend-redis-server=${E2C_CFG_DOMAIN_NAME}__redis --cache-backend-redis-db=0 && \
         m2c_magento notty setup:config:set --no-interaction  --page-cache=redis \
-                --page-cache-redis-server=${M2C_CFG_DOMAIN_NAME}__redis --page-cache-redis-db=1 && \
+                --page-cache-redis-server=${E2C_CFG_DOMAIN_NAME}__redis --page-cache-redis-db=1 && \
         m2c_magento notty setup:config:set --no-interaction --session-save=redis \
-                --session-save-redis-host=${M2C_CFG_DOMAIN_NAME}__redis --session-save-redis-log-level=4 \
+                --session-save-redis-host=${E2C_CFG_DOMAIN_NAME}__redis --session-save-redis-log-level=4 \
                 --session-save-redis-db=2
     ) >"$m2c_log" 2>&1
 
@@ -2445,9 +2445,9 @@ m2c_share_error() {
 
 m2c_share_exec() {
     local region="$1"
-          network="${M2C_CFG_DOMAIN_NAME/.test/}_default" \
-          container="${M2C_CFG_DOMAIN_NAME}__$([[ -n ${M2C_CFG_VARNISH} ]] && echo "varnish" || echo "nginx")" \
-          port="$([[ -n ${M2C_CFG_VARNISH} ]] && echo "80" || echo "8080")"
+          network="${E2C_CFG_DOMAIN_NAME/.test/}_default" \
+          container="${E2C_CFG_DOMAIN_NAME}__$([[ -n ${E2C_CFG_VARNISH} ]] && echo "varnish" || echo "nginx")" \
+          port="$([[ -n ${E2C_CFG_VARNISH} ]] && echo "80" || echo "8080")"
 
     m2c_info_bold "\n[Share]\n\n"
 
@@ -2477,7 +2477,7 @@ m2c_share_exec() {
         m2c_result ${m2c_res}
 
         docker run --rm -it -p 0.0.0.0:4551:4551/tcp --link ${container} --net ${network} \
-                --name ${M2C_CFG_DOMAIN_NAME}__ngrok shkoliar/ngrok ngrok http -region=${region} \
+                --name ${E2C_CFG_DOMAIN_NAME}__ngrok shkoliar/ngrok ngrok http -region=${region} \
                 -bind-tls=true ${container}:${port} 2>"$m2c_log"
         m2c_res=$?
 
@@ -2725,35 +2725,35 @@ m2c_varnish() {
         return 1
     fi
 
-    docker exec -i "${M2C_CFG_DOMAIN_NAME}__varnish" "$@"
+    docker exec -i "${E2C_CFG_DOMAIN_NAME}__varnish" "$@"
 }
 
 m2c_varnish_configure() {
-    local version=${M2C_CFG_VARNISH:0:1} \
-          dir="$m2c_project_dir${M2C_CFG_MAGENTO_SRC:+/${M2C_CFG_MAGENTO_SRC}}"
+    local version=${E2C_CFG_VARNISH:0:1} \
+          dir="$m2c_project_dir${E2C_CFG_MAGENTO_SRC:+/${E2C_CFG_MAGENTO_SRC}}"
 
     (
         m2c_magento notty config:set --scope=default --scope-code=0 \
             system/full_page_cache/caching_application 2 && \
         m2c_magento notty config:set --scope=default --scope-code=0 \
-            system/full_page_cache/varnish/access_list ${M2C_CFG_DOMAIN_NAME}__nginx && \
+            system/full_page_cache/varnish/access_list ${E2C_CFG_DOMAIN_NAME}__nginx && \
         m2c_magento notty config:set --scope=default --scope-code=0 \
-            system/full_page_cache/varnish/backend_host ${M2C_CFG_DOMAIN_NAME}__nginx && \
+            system/full_page_cache/varnish/backend_host ${E2C_CFG_DOMAIN_NAME}__nginx && \
         m2c_magento notty config:set --scope=default --scope-code=0 \
             system/full_page_cache/varnish/backend_port 8080 && \
         m2c_magento notty config:set --scope=default --scope-code=0 \
             system/full_page_cache/varnish/grace_period 300 && \
-        m2c_magento notty setup:config:set --http-cache-hosts=${M2C_CFG_DOMAIN_NAME}__varnish:80 && \
-        m2c_magento notty varnish:vcl:generate --access-list ${M2C_CFG_DOMAIN_NAME}__nginx \
-            --backend-host ${M2C_CFG_DOMAIN_NAME}__nginx \
-            --backend-port 8080 --export-version ${M2C_CFG_VARNISH:0:1} \
+        m2c_magento notty setup:config:set --http-cache-hosts=${E2C_CFG_DOMAIN_NAME}__varnish:80 && \
+        m2c_magento notty varnish:vcl:generate --access-list ${E2C_CFG_DOMAIN_NAME}__nginx \
+            --backend-host ${E2C_CFG_DOMAIN_NAME}__nginx \
+            --backend-port 8080 --export-version ${E2C_CFG_VARNISH:0:1} \
             --output-file ./var/default.vcl
     ) >"$m2c_log" 2>&1 && \
     (
         m2c_pull var/default.vcl >/dev/null 2>&1 && \
         sed -e 's/pub\/health_check.php/health_check.php/g' "$dir/var/default.vcl" > "$dir/var/default.temp" && \
         mv "$dir/var/default.temp" "$dir/var/default.vcl" && \
-        docker cp "$dir/var/default.vcl" "${M2C_CFG_DOMAIN_NAME}__varnish:/usr/local/share/"
+        docker cp "$dir/var/default.vcl" "${E2C_CFG_DOMAIN_NAME}__varnish:/usr/local/share/"
     ) >"$m2c_log" 2>&1 && \
     (
         m2c_varnish varnishadm vcl.load default /usr/local/share/default.vcl && \
@@ -2768,8 +2768,8 @@ m2c_varnish_configure() {
 }
 
 m2c_varnish_reset() {
-    local version=${M2C_CFG_VARNISH:0:1} \
-          dir="$m2c_project_dir${M2C_CFG_MAGENTO_SRC:+/${M2C_CFG_MAGENTO_SRC}}"
+    local version=${E2C_CFG_VARNISH:0:1} \
+          dir="$m2c_project_dir${E2C_CFG_MAGENTO_SRC:+/${E2C_CFG_MAGENTO_SRC}}"
 
     (
         m2c_magento notty config:set --scope=default --scope-code=0 \

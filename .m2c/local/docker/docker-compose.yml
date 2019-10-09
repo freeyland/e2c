@@ -2,44 +2,44 @@ version: "3.5"
 
 services:
   php:
-    container_name: ${M2C_CFG_DOMAIN_NAME}__php
-    hostname: ${M2C_CFG_DOMAIN_NAME}__php
-    image: freeyland/e2c:php-fpm-${M2C_CFG_PHP:-7.2}-alpine
+    container_name: ${E2C_CFG_DOMAIN_NAME}__php
+    hostname: ${E2C_CFG_DOMAIN_NAME}__php
+    image: freeyland/e2c:php-fpm-${E2C_CFG_PHP:-7.2}-alpine
     extra_hosts:
-      - ${M2C_CFG_DOMAIN_NAME}:${M2C_TRAEFIK_IP:-0.0.0.0}
+      - ${E2C_CFG_DOMAIN_NAME}:${E2C_TRAEFIK_IP:-0.0.0.0}
     depends_on:
       - db
     labels:
-      - m2c.project.path=${M2C_PROJECT_PATH}
+      - e2c.project.path=${E2C_PROJECT_PATH}
     volumes:
       - $HOME/.composer/auth.json:/auth.json
     networks:
       - default
-      - m2c
+      - e2c
 
   xdebug:
-    container_name: ${M2C_CFG_DOMAIN_NAME}__xdebug
-    hostname: ${M2C_CFG_DOMAIN_NAME}__xdebug
-    image: freeyland/e2c:php-fpm-${M2C_CFG_PHP:-7.2}-xdebug-alpine
+    container_name: ${E2C_CFG_DOMAIN_NAME}__xdebug
+    hostname: ${E2C_CFG_DOMAIN_NAME}__xdebug
+    image: freeyland/e2c:php-fpm-${E2C_CFG_PHP:-7.2}-xdebug-alpine
     extra_hosts:
-      - ${M2C_CFG_DOMAIN_NAME}:${M2C_TRAEFIK_IP:-0.0.0.0}
+      - ${E2C_CFG_DOMAIN_NAME}:${E2C_TRAEFIK_IP:-0.0.0.0}
     environment:
-      - PHP_IDE_CONFIG=serverName=${M2C_CFG_DOMAIN_NAME}
+      - PHP_IDE_CONFIG=serverName=${E2C_CFG_DOMAIN_NAME}
     depends_on:
       - db
     networks:
       - default
-      - m2c
+      - e2c
 
   db:
-    container_name: ${M2C_CFG_DOMAIN_NAME}__db
-    hostname: ${M2C_CFG_DOMAIN_NAME}__db
-    image: mariadb:${M2C_CFG_MARIADB:-10.3}
+    container_name: ${E2C_CFG_DOMAIN_NAME}__db
+    hostname: ${E2C_CFG_DOMAIN_NAME}__db
+    image: mariadb:${E2C_CFG_MARIADB:-10.3}
     environment:
-      - MYSQL_ROOT_PASSWORD=${M2C_CFG_MYSQL_ROOT_PASSWORD:-magento}
-      - MYSQL_DATABASE=${M2C_CFG_MYSQL_DATABASE:-magento}
-      - MYSQL_USER=${M2C_CFG_MYSQL_USER:-magento}
-      - MYSQL_PASSWORD=${M2C_CFG_MYSQL_PASSWORD:-magento}
+      - MYSQL_ROOT_PASSWORD=${E2C_CFG_MYSQL_ROOT_PASSWORD:-magento}
+      - MYSQL_DATABASE=${E2C_CFG_MYSQL_DATABASE:-magento}
+      - MYSQL_USER=${E2C_CFG_MYSQL_USER:-magento}
+      - MYSQL_PASSWORD=${E2C_CFG_MYSQL_PASSWORD:-magento}
     volumes:
       - ./../mysql/custom.cnf:/etc/mysql/conf.d/custom.cnf:ro
       - db_data:/var/lib/mysql
@@ -47,9 +47,9 @@ services:
       - default
 
   redis:
-    container_name: ${M2C_CFG_DOMAIN_NAME}__redis
-    hostname: ${M2C_CFG_DOMAIN_NAME}__redis
-    image: redis:${M2C_CFG_REDIS:-5.0}-alpine
+    container_name: ${E2C_CFG_DOMAIN_NAME}__redis
+    hostname: ${E2C_CFG_DOMAIN_NAME}__redis
+    image: redis:${E2C_CFG_REDIS:-5.0}-alpine
     volumes:
       - redis_data:/data
 
@@ -58,5 +58,5 @@ volumes:
   redis_data:
 
 networks:
-  m2c:
+  e2c:
     external: true
