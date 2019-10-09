@@ -337,7 +337,7 @@ m2c_install() {
     tail -n+${archive} "${0}" | tar -xzp -C ~ && >"$m2c_log" 2>&1
     test=$?
     if [[ "$test" == "0" ]]; then
-        ln -sf "$m2c_global_dir"/bin/m2c /usr/local/bin/m2c
+        ln -sf "$m2c_global_dir"/bin/m2c /usr/local/bin/e2c
         if [[ ! -f "$m2c_global_dir"/ssl/config/v3_ext.conf ]]; then
             mv "$m2c_global_dir"/ssl/config/v3_ext.blank.conf "$m2c_global_dir"/ssl/config/v3_ext.conf
         else
@@ -441,7 +441,7 @@ trap m2c_on_exit EXIT
 m2c_log="$m2c_global_dir"/log
 touch "$m2c_log"
 
-if [[ "$0" != "/usr/local/bin/m2c" ]]; then
+if [[ "$0" != "/usr/local/bin/e2c" ]]; then
     m2c_logo
 
     if [[ ! -f "$m2c_global_dir"/build ]]; then

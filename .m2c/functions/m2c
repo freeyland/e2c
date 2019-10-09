@@ -353,7 +353,7 @@ m2c_db_help() {
   Import/Export database commands and mysql cli tool access.
 
 \033[1;33mUsage:\033[0m
-  m2c db [command] [--help]
+  e2c db [command] [--help]
 
 \033[1;33mCommands:\033[0m
   mysql     Run mysql CLI command or open mysql command prompt.
@@ -810,12 +810,12 @@ m2c_help() {
   --help        Display this information. To get information about the specific
                 command, use with corresponding command name. 
 
-e.g.: m2c global --help
+e.g.: e2c global --help
 "
     else
     echo -e "
 \033[1;33mUsage:\033[0m
-  m2c <command> [args...] [--help]
+  e2c <command> [args...] [--help]
 
 \033[1;33mCommands:\033[0m
   add           Add optional service to project.
