@@ -1,6 +1,6 @@
 #!/bin/bash
 
-sed -n '/^__ARCHIVED__/q;p' ./.e2c/bin/e2c >./e2c
+sed -n '/^__ARCHIVED__/q;p' ./.e2c/bin/e2c >./m2c
 
 echo '
 
@@ -9,6 +9,6 @@ exit 0
 __ARCHIVED__' >>./e2c
 
 tar --format ustar -czf ./e2c.tar.gz .e2c
-cat ./e2c.tar.gz >>./e2c
+cat ./e2c.tar.gz >>./m2c
 
 rm -rf e2c.tar.gz

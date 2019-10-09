@@ -1,0 +1,644 @@
+#!/bin/bash
+
+declare -r e2c_version="0.2.18"
+declare -r e2c_os="$(uname -s | awk '{print tolower($0)}')"
+declare -r e2c_global_dir="$(echo ~/.e2c)"
+declare e2c_loading_pid=
+
+e2c_logo() {
+    local logo='
+                  #######################################
+                  #######################################
+                  #######################################
+                  #######################################
+                  #######################################
+                  #######################################
+                  #########         #####         #######
+                  #######    ####(  ###    ####    ######
+                  #######    #########    #####    ######
+                  ########       #####   **      .#######
+                  ///////////       //        ///////////
+                  ///////////////    /    ///////////////
+                  ///////  .////    ///    .////  ///////
+                  ///////          /////          *//////
+                  ///////////////////////////////////////
+                  ///////////////////////////////////////
+                  ///////////////////////////////////////
+                  ///////////////////////////////////////
+                  ///////////////////////////////////////
+    '
+
+    echo -e "\033[1;33m$logo
+                                Emma2click
+                              Docker Magento
+                          environment and toolset
+                                  v$e2c_version
+\033[0m"
+}
+
+e2c_loading() {
+    tput civis
+    e2c_start_spinner &
+    e2c_loading_pid=$!
+    sleep 0.1
+}
+
+e2c_start_spinner() {
+    local sp=('â ‹' 'â ™' 'â ¹' 'â ¸' 'â ¼' 'â ´' 'â ¦' 'â §' 'â ‡' 'â ')
+    #local sp=('/' 'â€”' '\' '|')
+    #local sp=('â—' 'â—“' 'â—‘' 'â—’')
+    #local sp=('â—¢' 'â—£' 'â—¤' 'â—¥')
+
+    printf "\033[1;33m"
+
+    while [[ "$(ps a | awk '{print $1}' | grep $$)" ]]; do
+        for i in "${sp[@]}"; do
+            echo -en "\b$i"
+            sleep 0.1
+        done
+    done
+}
+
+e2c_stop_spinner() {
+    if [[ -n ${e2c_loading_pid} ]]; then
+        kill ${e2c_loading_pid}
+        wait ${e2c_loading_pid} >/dev/null 2>&1
+        e2c_loading_pid=
+    fi
+
+    printf "\b\033[0m"
+}
+
+e2c_trim() {
+    local var="$*"
+    var="${var#"${var%%[![:space:]]*}"}"
+    var="${var%"${var##*[![:space:]]}"}"
+    echo -n "$var"
+}
+
+e2c_msg() {
+    echo -en "\033[0;32m$@\033[0m"
+}
+
+e2c_info() {
+    echo -en "\033[0;33m$@\033[0m"
+}
+
+e2c_info_bold() {
+    echo -en "\033[1;33m$@\033[0m"
+}
+
+e2c_error() {
+    echo -en "\033[0;31m$@\033[0m"
+}
+
+e2c_error_bold() {
+    echo -en "\033[1;31m$@\033[0m"
+}
+
+e2c_result() {
+    local res=$1 \
+        noexit=$2 \
+        error
+
+    e2c_stop_spinner >/dev/null 2>&1
+    tput cnorm
+
+    if [[ $1 -eq 0 ]]; then
+        e2c_info_bold "\bâœ”\n"
+    else
+        e2c_error_bold "\bâœ˜\n"
+
+        if [[ -f "$e2c_log" ]]; then
+            error="$(echo $(cat "$e2c_log"))"
+            [[ -n ${error} ]] && e2c_error "$error\n"
+        fi
+
+        [[ -z ${noexit} ]] && exit 1
+    fi
+}
+
+e2c_ask_bool() {
+    local message=$(e2c_msg "$1") \
+    only_y=$2 \
+    opts \
+    res
+
+    tput cnorm
+    stty echo
+
+    if [[ -z ${only_y} ]]; then
+        opts="[Y/n]"
+    else
+        opts="[Y]"
+    fi
+
+    while :; do
+        read -n 1 -srp "$(e2c_msg "$message $(e2c_info_bold "$opts")") " res
+        e2c_erase_current_line
+        if [[ "$res" == "Y" || "$res" == "y" ]]; then
+            e2c_msg "$message $(e2c_info_bold "[$res]")\n"
+            res=1
+            break
+        elif [[ -z ${only_y} ]] && [[ "$res" == "N" || "$res" == "n" ]]; then
+            e2c_msg "$message $(e2c_info_bold "[$res]")\n"
+            res=
+            break
+        fi
+    done
+
+    e2c_res=${res}
+
+    stty -echo
+    tput civis
+}
+
+e2c_ask_text() {
+    local message=$1 \
+        default=$2 \
+        error=$3 \
+        error_info=$4 \
+        validate=$5 \
+        validate_value=() \
+        res valid error_count res_count valid=1
+
+    shift
+    shift
+    shift
+    shift
+    shift
+
+    validate_value=("$@")
+
+    tput cnorm
+    stty echo
+
+    temp_term=${TERM}
+    TERM=vt100
+
+    while [[ -z ${res} || -z ${valid} ]]; do
+        valid=
+        error_count=0
+
+        exec 5>&1
+
+        message=$(e2c_msg "$message")
+
+        if [[ -n ${default} ]]; then
+            echo -e "$message $(e2c_info_bold "[$default]")"
+        else
+            echo -e "$message"
+        fi
+
+        if [[ -n ${res} && -z ${valid} ]]; then
+            error_count="$(echo -en "$(
+                e2c_error "$(printf "$error" "$res")\n"
+                [[ -n ${error_info} ]] && e2c_error "$error_info"
+            )" | tee >(cat - >&5))"
+            error_count="$(echo -en "$error_count" | awk 'END { print NR }')"
+        fi
+
+        res="$(read -er 2>&1 | tee >(cat - >&5) | tr -d '\r')"
+        res_count=$(echo "$res" | awk 'END { print NR }')
+
+        [[ ${error_count} -eq 0 ]] && ((res_count++))
+
+        while IFS= read line; do
+            res="$line"
+        done < <(printf '%s\n' "$res")
+
+        e2c_erase_prev_lines $(((res_count + error_count)))
+
+        res=$(e2c_trim "$res" | tr -dc '[:print:]')
+
+        if [[ -z ${res} ]]; then
+            res="$default"
+        fi
+
+        if ${validate} "$res" "${validate_value[@]}"; then
+            valid=1
+            e2c_res="$res"
+        fi
+    done
+
+    TERM=${temp_term}
+
+    exec 5>&-
+
+    echo -e "$message $(e2c_info_bold "[$res]")"
+
+    stty -echo
+    tput civis
+}
+
+e2c_erase_current_line() {
+    echo -ne "\033[999D\033[K\033[999D"
+}
+
+e2c_erase_prev_lines() {
+    local count=${1:-1}
+
+    while ((count > 0)); do
+        tput cuu 1 && tput el
+        ((count--))
+    done
+}
+
+e2c_in_array() {
+    local entry match="$1"
+    shift
+    for entry; do
+        [[ "$entry" == "$match" ]] && return 0
+    done
+    return 1
+}
+
+e2c_requirements() {
+    local test pass=1
+
+    e2c_info_bold "\n[Checking requirements]\n\n"
+
+    e2c_msg "OS compatibility check.................................................  "
+    e2c_loading
+
+    case ${e2c_os} in
+    darwin | linux)
+        e2c_result 0
+        ;;
+    *)
+        echo "Currently we are not supporting $e2c_os based OS yet." >"$e2c_log"
+        e2c_result 1 1
+        pass=0
+        ;;
+    esac
+
+    e2c_msg "Docker installation check..............................................  "
+    e2c_loading
+    hash docker 2>/dev/null
+    test=$?
+
+    [[ "$test" == "1" ]] && echo "Docker command line interface was not found." >"$e2c_log"
+
+    e2c_result ${test} 1
+
+    [[ ${test} -eq 0 ]] || pass=0
+
+    e2c_msg "Docker-compose installation check......................................  "
+    e2c_loading
+    hash docker-compose 2>/dev/null
+    test=$?
+
+    [[ "$test" == "1" ]] && echo "Docker-compose command line interface was not found." >"$e2c_log"
+
+    e2c_result ${test} 1
+
+    [[ ${test} -eq 0 ]] || pass=0
+
+    test=0
+    e2c_msg "Ports 80 and 443 availability check....................................  "
+    e2c_loading
+
+    if [[ -z "$(docker ps \
+        --filter "label=com.docker.compose.project=e2c" \
+        --filter "label=com.docker.compose.service=traefik" \
+        -q)" ]]; then
+        if lsof -PiTCP:80 -sTCP:LISTEN -t >/dev/null 2>&1; then
+            echo "Port 80 is already used by some other service." >"$e2c_log"
+            test=1
+        fi
+
+        if lsof -PiTCP:443 -sTCP:LISTEN -t >/dev/null 2>&1; then
+            echo "Port 443 is already used by some other service." >"$e2c_log"
+            test=1
+        fi
+    fi
+    e2c_result ${test} 1
+
+    [[ ${test} -eq 0 ]] || pass=0
+
+    if [[ ${pass} -eq 0 ]]; then
+        exit 1
+    fi
+}
+
+e2c_install() {
+    local archive test
+
+    e2c_info_bold "\n[Installing commands]\n\n"
+
+    e2c_msg "Locating archive.......................................................  "
+    e2c_loading
+    archive=$(awk '/^__ARCHIVED__/ {print NR + 1; exit 0; }' "${0}")
+    test=$?
+    e2c_result ${test}
+
+    e2c_msg "Extracting data........................................................  "
+    e2c_loading 2
+    tail -n+${archive} "${0}" | tar -xzp -C ~ && >"$e2c_log" 2>&1
+    test=$?
+    if [[ "$test" == "0" ]]; then
+        ln -sf "$e2c_global_dir"/bin/m2c /usr/local/bin/e2c
+        if [[ ! -f "$e2c_global_dir"/ssl/config/v3_ext.conf ]]; then
+            mv "$e2c_global_dir"/ssl/config/v3_ext.blank.conf "$e2c_global_dir"/ssl/config/v3_ext.conf
+        else
+            rm -f "$e2c_global_dir"/ssl/config/v3_ext.blank.conf
+        fi
+    fi
+    e2c_result ${test}
+
+    case ${e2c_os} in
+    darwin)
+        if [[ ! -f "$e2c_global_dir"/mutagen/mutagen || "$(echo "$("$e2c_global_dir"/mutagen/mutagen version)")" != "0.10.0" ]]; then
+            e2c_info_bold "\n[Installing Mutagen for docker sync performance]\n\n"
+            mkdir -p "$e2c_global_dir"/mutagen >"$e2c_log" 2>&1
+            curl -L \
+                "https://github.com/mutagen-io/mutagen/releases/download/v0.10.0/mutagen_darwin_amd64_v0.10.0.tar.gz" |
+                tar xzf - -o -C "$e2c_global_dir"/mutagen/
+            chmod 0755 "$e2c_global_dir"/mutagen/mutagen
+        fi
+        ;;
+    esac
+
+    if [[ ! -f "$e2c_global_dir"/ssl/certs/rootCA.crt ]] || [[ ! -f "$e2c_global_dir"/ssl/private/rootCA.key ]]; then
+        e2c_info_bold "\n[Installing CA certificate]\n\n"
+
+        if [[ "$e2c_os" == "darwin" ]]; then
+            pass="e2c"
+        else
+            pass="e2c0"
+        fi
+
+        e2c_msg "Generating private key for CA certificate..............................  "
+        e2c_loading
+        mkdir -p "$e2c_global_dir"/ssl/{certs,crl,new,private,serial} >"$e2c_log" 2>&1 &&
+            openssl genrsa -aes256 -passout pass:${pass} -out "$e2c_global_dir"/ssl/private/rootCA.key 4096 >"$e2c_log" 2>&1
+        test=$?
+        e2c_result ${test}
+
+        e2c_msg "Signing CA certificate.................................................  "
+        e2c_loading
+        openssl req -new -x509 -nodes -sha256 -days 3650 \
+            -passin pass:${pass} -subj "/O=Emma2click/OU=IT/CN=e2c.local" \
+            -config "$e2c_global_dir"/ssl/config/rootca.conf \
+            -key "$e2c_global_dir"/ssl/private/rootCA.key \
+            -out "$e2c_global_dir"/ssl/certs/rootCA.crt >"$e2c_log" 2>&1
+        test=$?
+        e2c_result ${test}
+
+        e2c_msg "Password is required to trust CA certificate...........................  "
+        e2c_loading
+        e2c_result 0
+        tput cnorm
+        while ! sudo -p "$(printf "\033[0mPassword:")$(printf "\033[1;31m%s" " ")" true; do
+            exit 1
+        done
+        tput civis
+        e2c_erase_prev_lines 1
+
+        e2c_msg "Trusting root CA certificate ..........................................  "
+        e2c_loading
+        case "$e2c_os" in
+        darwin)
+            sudo security delete-certificate -c 'e2c.local' >/dev/null 2>&1
+            sudo security add-trusted-cert -d -r trustRoot \
+                -k /Library/Keychains/System.keychain "$e2c_global_dir"/ssl/certs/rootCA.crt >"$e2c_log" 2>&1
+            test=$?
+            ;;
+        linux)
+            if [[ -d /usr/local/share/ca-certificates ]] && [[ ! -f /usr/local/share/ca-certificates/e2c-root-ca.crt ]]; then
+                yes | sudo cp -rf "$e2c_global_dir"/ssl/certs/rootCA.crt \
+                    /usr/local/share/ca-certificates/e2c-root-ca.crt >"$e2c_log" 2>&1 &&
+                    sudo update-ca-certificates
+                test=$?
+            elif [[ -d /etc/pki/ca-trust/source/anchors ]] && [[ ! -f /etc/pki/ca-trust/source/anchors/e2c-root-ca.crt ]]; then
+                yes | sudo cp -rf "$e2c_global_dir"/ssl/certs/rootCA.crt \
+                    /etc/pki/ca-trust/source/anchors/e2c-root-ca.crt >"$e2c_log" 2>&1 &&
+                    sudo update-ca-trust && sudo update-ca-trust enable
+                test=$?
+            else
+                echo "Currently we are not supporting $e2c_os based OS yet." >"$e2c_log"
+                test=1
+            fi
+            ;;
+        esac
+        e2c_result ${test}
+    fi
+}
+
+e2c_on_exit() {
+    e2c_stop_spinner
+    stty echo
+    tput cnorm
+    echo
+
+    if [[ "$(basename "$(test -L "$0" && readlink "$0" || echo "$0")")" != "e2c" ]]; then
+        rm -- "$0"
+    fi
+}
+
+trap e2c_on_exit EXIT
+
+e2c_log="$e2c_global_dir"/log
+touch "$e2c_log"
+
+if [[ "$0" != "/usr/local/bin/e2c" ]]; then
+    e2c_logo
+
+    if [[ ! -f "$e2c_global_dir"/build ]]; then
+        message="Install Emma2click Docker Magento environment and toolset to your system?"
+    else
+        e2c_is_update=1
+        e2c_res="$(e2c --version 2>/dev/null | tr -dc '[:print:]' | sed 's/\[0m\[?12l\[?25h//')"
+
+        if [[ "$e2c_res" == "$e2c_version" ]]; then
+            message="Hooray! You have the latest version of Emma2click toolset. Reinstall?"
+        else
+            message="Emma2click toolset v$e2c_res is found on your system. Update it to v$e2c_version?"
+        fi
+    fi
+
+    e2c_ask_bool "$(echo -n "$message")"
+
+    if [[ -z ${e2c_res} ]]; then
+        exit 0
+    fi
+
+    e2c_requirements
+    rm -rf "$e2c_global_dir"/{bin,completions,dnsmasq,docker,functions,local,traefik,www,build} >/dev/null 2>&1
+    e2c_install
+    . "$e2c_global_dir"/functions/e2c
+    e2c_sign "e2c.test"
+    e2c_global up
+
+    e2c_info_bold "\n[Installation finished]\n\n"
+    e2c_msg "Emma2click toolset is successfully installed! \n\nRun \`e2c --help\` command for usage information. \nVisit local https://e2c.test to check useful links to included services.\n\n"
+
+    if [[ -z ${e2c_is_update} ]]; then
+        e2c_ask_bool "Initialize new project in the current directory?"
+
+        if [[ -n ${e2c_res} ]]; then
+            e2c_init
+        fi
+    fi
+else
+    . "$e2c_global_dir"/functions/e2c
+    declare -r e2c_project_dir="$(e2c_get_project_dir)"
+    e2c_log="$e2c_project_dir"/.e2c/log
+    e2c_load_project_env
+
+    case "$1" in
+    global)
+        shift
+        e2c_log="$e2c_global_dir"/log
+        e2c_global $@
+        ;;
+    init)
+        shift
+        e2c_init $@
+        ;;
+    sign)
+        shift
+        e2c_sign $@
+        ;;
+    --version)
+        echo -n "$e2c_version"
+        ;;
+    --help)
+        e2c_help
+        ;;
+    *)
+        case "$1" in
+        up)
+            e2c_local_project_check_dir
+            e2c_local $@
+            ;;
+        add | down | logs | info | remove | restart | start | status | stop | update)
+            e2c_local_project_check
+            e2c_local $@
+            ;;
+        bash | cli | composer | db | grunt | magento | m | magerun | mr | mutagen | node | npm | pull | push | redis | share | sync | varnish | urn)
+            e2c_local_active_project_check
+
+            e2c_res=$1
+            shift
+
+            if [[ "$e2c_res" == "m" ]]; then
+                e2c_res="magento"
+            elif [[ "$e2c_res" == "mr" ]]; then
+                e2c_res="magerun"
+            fi
+
+            [[ $(type -t e2c_${e2c_res}) == "function" ]] && e2c_${e2c_res} $@
+            ;;
+        *)
+            if [[ "$1" != "" ]]; then
+                e2c_error "Unknown argument \`$@\`. Run \`e2c --help\` for usage information.\n"
+                exit 1
+            else
+                e2c_help
+            fi
+            ;;
+        esac
+        ;;
+    esac
+fi
+‹ ·] í½ÛrG’(8¯[_,A”ÄÌº@ˆE	A	Ó¼5@öŒ†ä@‰ªÍªÌRf@ˆÀØy:û°{vö˜=fû°¶×Ø‡]³ıšş’u÷¸dDfd] ”º‘Qy‰ğğğğğğğˆpwıÖ şŸöj4ëİ.£ß^~­ÿk¶»^·Ûé¶›¬Ñl­·ZÿÀºŸ/º¦IêÅ€ÊQìı8¼/IÉfÀõP¿¿“ËÅöO’Ñ§äåÛ¿İmµïÚÿ6.jÿa4xïÇŸŒ–oÿNs½y×ş·qQûáo¤ÿ¯7×{ÔÿwòÿV.jÿ³³³ßHû+ùßéİµÿm\Ôş£hà}Bà
+òş¿kÿÛ¸¨ı¦á ¢0ù4<°Œüo7»Øşëíî]ûßÆÅÇÿi0~º2€½NgVû·¨ı×í^g½…ò½ı¿ñéPÊ®¿óöoo|nî®ÏyQÿOcÏ?
+Ş*à
+ã»³~'ÿoãâóÿ0{É/¿¥ö_oÜµÿm\Fû‹_w…³ªºì5oüïu{¹öï­7ïÆÿ[¹¾`»Gì<š²a®¦ìÌS&Ø€¥‹}oÈê~:¨Ç~N‰5X3/<gQzâÇ•/ØQ0òï³c?Mƒğ˜iÂ?>õã„ÅÑ˜¥'ABiX&)\K|Ÿú£è¬v>û! )H4ûP<¦w+aäğ"+ğq{M‡OF^ì³Ğû~…ÿö›.ı—=6à¿&fü!ŠG¹L_ˆ»ş†Kÿ™/:n3n‡@’±(³³“`pBD"ò Y¢xàã²İ—Ì×„9|2¿:ñ™ÿÁOF¢šP@8$šDI
+t`nê'Êc4û†\gş!ÇÃ­€ı:%«7[ë¼J7ßşÆø/~İ4n°Œyı¦}jş·Şíİõÿ[¼†ş‘7¥;aŸ¿Œ‚:oŸ½©¤é¤zŸÑoR}W©¼ñ³ï*ŒéÏ.¦Â—²ôYus£Q…7–„.:ˆıAú¾gŸ1/Ï?ÉĞé´1!H‰xwäß^hâ¦£„_íŸİ§ÁQ0ğ Ó½“‰ñå^P&	B\,Ã—Iº;ˆÓªHùŞ?/$œÄÁ)€£¤ğ½ú¹›»påì?ğtóeÌìÿ­^&û|şßì5ºœÿwÛíö]ÿ¿ë‹{´úsè%'•Jp}ƒ9¿²•ÀÇ£èĞ@o½dĞh ¦.;8‰˜ã³êÛF»ı¦ùM»9~…c|2ˆƒ	n)ŒvşG·Cv£)–8úYrMGCF)~ñ?øƒi
+Ÿ¸<ß#€1ïQş‡ eÍÊQP©ışNÌ±S/ƒää ‡sdÛşZµë¶ª¬Úq›ÕZ>µ?ò’4$¾Œ<=wòôÜuúÛ£¿]úÛ¡¿múÛ¢¿MúÛ¨²·¢·Ï½ %Ù%]Ù%Õ.ì.²E`Z¦E`Z¦`
+õ½ÃÃ ÿ¢W¹M•mfmÂ¬M Û²M Û²½(fPø¡°N{ô·[‡l…8ÌO&qôh}d³µûH%’JÄÓ8I_úÕ•µÉÙ°V­ĞwĞÈ@Ğ¯ŞcÎ«®h)ëúŠ¶ë‡§Uà]ö‡?`j#a•İë³›õ±ZÇ¼Tà0R”Èa5ærÖ]—=ªıÓz8XëÑšXÇÃ
+}^«¢„Ÿ©æ\\È×‚X—œÌ‰wê+:Iòt>8ÆP!L¯5I‘œ
+uNy•—Æï!s&ˆÜ‘êm¤«Uÿ4š‚Rm|à?eì8ö'lõ_wZÛÛO~8XeriEÕF‘7¼áª	)X¬}URPâêxêÑÍá¨'ûš'Ci†¿ş‡I§ë÷rïÅ?îl¿:x¹õêÇ"–ÕBúW{[;Ovÿx°ûùãÏ&‰ÖY¦[)¼­<˜ôAGry:Õ¥(ñ]QBJ«.—ç(ÁÀï‹É‚‘ûšîƒ'Làó§	”cÅc/íW?~`œøÀÜç~zÅï÷ù2‘Ï	6»ûr‹k}——Õš½İ…›,Â Ù &–=æm`Ú|dN½Q05ï€Ïs(ğ—ı•¦Á^!²üË%BÆç5ÑyùëªìÎF½Õµ]ûvóçüºåüKÃyğŒowµû½æ¥–¨öí[·ö5Î%Wj«5++Ç~:CÖàÜ&iíKSòo¾ÒAxàÅ±w«6|Ÿú0æÔø¿É{Dr¥tÇ“|ãÒÊw8$Hâ#mèÛ¥vP,Dßª2Qòæ»wDCY”B
+é<¶hˆ°aªÚ'‡ ¶ÍQV&Çg¡’¦ñè`â¥'Ë–¦q‚(ôŠŒğöà]Í`‚Ú×¢ù®hjşx’Z·¬óá›*ïQÓ¸Ğ.\oé¯|”ÃÀÎÓ­ıW»Ûû;[{Û?n66›—5E„>öaHŒPÍLÏ…Ø$Qí$ƒhâ÷…¼ÏÎ úıƒ‰Ÿ7Šë­º¡ŸÓÌ¡ÆÅz«Nm÷öFğ0KÌcUŠÀ· ‰‰F]NFÅÇ/mí>?x¾õlçòÀlÊQc¸¬„b«¤Àp*‹V\ùÖŞŒ £ıô7Ù„ãóä—Ño¯}ªÕåÈ¨D“Têó9R#Hè‘,ÓökLT ¢É].x³I^|'ÒöÎÉ›Æ»K>ÄqÊînHr­ö"Õ}–L'¨›À<NfÜ|V³Œ ¹"TUÙ@`ZA«+ï©Ò@Šg*“¦p >å¤*ÃJğîòmú6­I×ÖØÚJÀ¾fÍû’uY¿2¨VS:3A‘ò¢B¿†/*’1¼äıAêHYT³º„û9Li™P>6­³$Ä99K¾af}#¢YXÇ^ƒ.DÈ
+çÍ•o¬@è­€UŸqÖM//ÙGŸmı°óüÕ¡1A¿ÎˆõÍ7çĞ¹>”€xşÃîóàå/K²Ã—y™Ÿyqà=ş¾´
+{»[¿ŸdÏI	ˆ½Ç»ûó ü™›"J@üykïùîşó€ìè2£”!7çV‹¦şÏşTV³­ï¿ß}õìO3Àø‰7È:¤èK)4Jòp]5;ìfU¤ö™æ„ılN¤´@CÙ”é”¶)¦Ì4™@ƒs¦Ì›€2ÄmTvóëô2À`ß&'“*C1'+€¶®ß_k£b>ÿşª"1çÕ1pG(QÂ+0ôâ3œ•Õ`œ£ ß‘çÉt4Â5ÈS?‚œævÅ(>GS$äç«o‡ç,†!¦{û3 ¢\"ËÛŸ»1Ú*%…èÄ¼‰™°3?öÙàÄı¡[ÍÍˆ†‡z[¬ÁØúEµV³#Ÿ	nÇ9ñG@••ïäLgxx€¯**ƒãMC†ãEŠÙÇÍæÔ/š+CDzı«&>8´,dÊ3r0FmaIĞ<SsÈØÜJR„- ğÏ³ |UGeh¤²Ü$0é&ßƒdsâ³Î,¼%>o÷]´ß«B‹Ö9'ÃC Õ5æş´ÿ§§¯÷wöªÌ™äß¿ÜÚßÿ§{Q›_o½Úú~kÇÓ’¡n“@×¢-¤ä„´låát<ùµ4¢|«­ÍûxnVƒæn:ÒHGüRN5TŸ£Ñ‡ˆ7»%>hÍ¥ş»·¡>Y\Vü"€ıõ?ş»-{ü=¨¾¦ÉqÆÁØwÒó‰¯–öœ_Øñ¯Ádå}	™Æ·×!=ˆ9I…z0j&ëÎº«à£	@™“§‚ø;†€#sööe¡§[Ïèo³§ĞØ¯~z¹Ão·>…›&‡ÏV“úã'»ÏwöŞ°w_õñÏ›ıêİWo¿ªÃÿ«¥‘‹º‹‘Ì2Îç'ò0—Voõşc¼È,ù¦H>ğÒ¿1bK‰dĞY˜ûI1“ia+'[ÆUèl£ñLKÏ™XOüÁ4öq	œl¶bÊf½¾b‘õj¡şK–°¸ixİ²Lbû#my9è²TBr…¦ºí…¸Ò6õ-Ï€q	'8
+€¯Ğ½Éˆ7ï)#O~$÷)×9;Bõ3¢>aû"kA”~\ÿ/–
+I¹°se1†êÄ59ûX‘_æº+kh-a_ùÄıòÇ/Ÿ}¹_s÷øWÍèc;fŒ™Üü=«Ú ¨aB"ˆjÚ(¡:Âvì{©ñr?Óòò‡i¨èÀ´¬ê	6!Õ†§ØAÅM@ğò—i0x_7/r°ıia—d]e†x19]ãd5Åó½ß‡ÑYÈ¼øxJ»Jßş¼òİÛŸ]¶7Å´õš{Á¤­zÓº-ÃÆÂåI „b=±%+se¥Êí0¹¦=ŞÍ lŠM-–,uÎ[YëŠgBíÏåî`@ˆFÌ€ÜŠû5â©Auy#À¼coxµŞé™¶EZ>^^Hş´ıtWM€$ÑÄ—_ä[èYãIêVÔ’4\¢BRì©ŠÁ=5±äià…¬‡ Ä¤IÂØ…å(v„Š˜£R~ˆp¡9"-Ã€€ÚK_Â=yÇ:8™0ÿã ²ÏùVe*4$ğ%dƒëfMçÅŠs6¥·Nç±Ô‹$õÒibÎA5˜F}ÓæBÚ•g”	l™§!nËöò³}-·JaÍ>AÑZ—>Û2æ¦Ú\„k9Å>\£@æ F…9è£”U±MîÔV„ªLÚ‚Î3x_]|mN:Á÷ıŠ‘Œo@’&oòËx•m2Êa{ÇétúMÒhR´?Xˆ*q*˜CôËnOÁ+gó—¢ò… ñ… ğ… ïEFİ…Ğ$şº¿¶Ò,Ï°4¥p1”QÈ[Ypä•mÔ’6øÇ/ŠU¤%—Z6`Yêol§”|yLèÄ1FZÑĞ—6š–ğŠÑùp_‚n!³…$Ä—s‹¡T×,Iô¹e‰t×®WYO3ª]—~%¬šæ@2ÓXŸ1¤å”¡¦©qWSˆÔ „©$‘BÃ*•¨)¤¿”ß—˜oÏ™j4â­¤ìgüëõJ.-[ˆÔ’²‹xŸ¦l!ÆKÊ~%ÿ|š²Ë†UüJpÓÅSW1Yu:ÉM•6€#UÉ”PMÓ„]U©š+kb`ĞÅÌkšÚ®ƒjReµwÚìÏØQ+š>QÖÃ`¤Ùp#ÄLÇØëYĞË…BèĞÖìÿæÄŒ¶ú¬°cRì•4Á¹çãQ†£<Œ!ßê9ğØ íò(/cØ ±ØlD®Ğû˜ï÷Ü|Xfö½¿ªù®´ÿwÁÜ’Ì&ê@¿x3¬…µ±î¯ĞÊ{<çïº¥²ó÷ĞÒ¨m]©3G“Éïº‘IÍü{hai„04T€U´6—‰Ì£ùj@NYk-ËUqô ÃÙzA=XUG¶É8ï>E°	«–S·zyi0§ağ‹8Ñ#ØuâÁ´.ãÀ„×KÕhmå£¼¿¬YøM~´2NÇ ßXõK˜[åÁ6n†ÿj™”¡RvRdIËj`gA_¶šz‡ ?|üèî>¾¼dxó4äòòmŠ/ÑR(î÷Éä…Äu¼‚-†Õ¤+–ÅÔëß0üÆIs)²ìâæÅ:ÿ[­åe•¶Ù¿©«lù¥ØZ¾’¬6ùçizAÕ^MêîWu¾2ô¶ş¶şî
+`µ¦—©s`ª©õååêäd2>÷†ã@Ëd]læXCògç[˜|Ó²zyuä'cÏµV@ì¹X¨.ÆÎê…ªcì«¼ÙÈ\¿nò¬æBÕ’»;o¶F…¹•Ñ˜œVgpøÒò· ØQ0˜2!_!pga­Ø©·ëTÏF§Š‘æ%BùšQ'§åHÙŠu/'eßöê¬Û'÷·/é—ò¹e\Ô3{Â¦}‰¶Ğ=½s»³\¨zr†¢°·,3B”b(·0İvş8¡VXf¡¬Ìr7‚´*óêhËÅ YH{Ş ,Ê»:ÂrÍjÂÂx#K^e+ñ÷6,I« ãëy9FşCé0<í\2FUî^´fŠØG©/2•Íî^Si¹|ÏÄ‰Ï·Å‘¡š’]Ç\˜ŸŸ	ô²Šá>'yÊäVØ;sƒôdz8…i’ÎS õÌÒ‰ŞT€e’ÔgÍ!Ì-ïzQ09F
+ŠÛÖ…‰!Ön<Ù²È ÁÏØ´$I æpâ×ÁÉ82tã'-$qëâ§h~W„››“jjÜŸ¢é_ÿÃ}hX'lÜ{ì”øJÃ
+éˆatN;ÈBÿ=jÉïŞ)tUšôıC3ØZ.qçVõf”ilü¸•"Í¡ä{¶£lb[0Tğmè5í4MÇxÈ €ô‡>1á©?´A|)¡¡6Á£êxåVÈÉ‚?tÙ3ï½Ï’)4=ñÒ8ômvè^C´ãf¨Šm‰Ë^'~¶m†ïüxû3›øê\f1aõµm*K¨¼éÄÍmˆÂ£w‡¸ñ¥ªÈÍ²¡œöÄàF:r,GÇğ’s`éñ·æşàP,£Æ¨2ØzÑÍğúô¼ÈèÀHSTïgT‹LSÜœM<r›SÎII–aU¯Ü~)Ëò3ÜŞNV)åN‹_…ÉŞãìÚ›J•ß·›Ïj™yS¥‚‚´»áÉ¸¢5ß·-¸F”ZÎ’ğm›ˆÓxjREZÇÌ9=ša^Äëæ@Íf),¡»ú@D’òİè6½Ò~fsg9>**>…–ËPŸ&Ò		Ü3R G9<HçşF>-ÇU™ƒÛw+‚¤JãÈ*~oS5|I{¶Øß2wÏ¢ØrğPlryÄŞˆ¬À÷obTc]û'ÑÒ ¡uŸqGn25î”‹+üËE¶Êê%öÅ(¡E’©¸_qQÑ„iàIJ\ÀTËmÅGZò±6§™âq¿ĞDÏã*‰Ym –¥¡òm–•2Îs©!¯ù:ËÆÙHhM.İÓòKÌ–$¶´15—V˜–FÌä1GÔ¨Ù)%P3_=‰˜ub>Ÿ%Xhç)Ua¹İ§À'éïïĞ/¡mù
+'ãß_5 i³ÑĞÿıÕ¢Øè”5[™Ëí¡‚J!RVó4ß4gM¤ö³ƒã“üƒ‘üİÌ3/O& a<”^‚x×¸æüŸq=?¡Ã]Ö¹ÁĞ÷l®ûŞf¨Éîşé&ÔÑ¾_6á­£€$õqÜãÑ"gè•æ3¿êîßêRe¤³êf)ÒmŞ9åÇ?åg1¾­Ÿz1Åö:IÇ£oWó W¿=.ÚÖsiêfQÅYVÎeÈÁşŞöeæÀĞZ@Ú3ñ’ì½å¦¸l0ÑÔ¬8.[¤©@Œ!Ô0+gäömãŠnT%Èå)#C8;ñNÑ8L¾$—àŒ^ê/|ÉÙÏJÀ8È}$Ø§GÌÜ±gˆNeªqÆÚyŞ}Â½îl
+ M=Óô2¹o4YF3ó†C³ĞŸz4Á®›mì ó`bbÈÃ…º^àÑ4jĞk~ê„\<ˆ“‚ ÇrjÂÀ¦Ë.ÜŞŠN×ñ­<¿r¤'Ñ4eÇ9«…g­‚#=?(8ê87PÇv0ığPïF¥Á#öGØŞfRÜ‰«®Wä#wŠ½Wœ`ñ²ÃºûŠÃ˜ïrÁm¼£QŞ|ÄMEX“1–!TkâŒDôÆZAš]«ë%®H)<é›P=Ó©Hd Ù.<Ş(øÕ×òÙ…/«*f¾N²Ìü3JK¯£# †¡ WéH8ßgcYœUI‘m­~„:C–Xd	l8â­=ø&‡Ñ{ÚÉ8ÇøÆš”Q#)S’˜Z[&æO…ŞE*µÖ¿ì9ëÈM1²©DBü&g70ñåó—ô4,/1‚w*Áã‹ĞU+ˆ‡]YxG íCa ß€àXëûø”3ÕS‡eI2bš{ö²9˜©}Úü¹0[æhX@	ÅŠÓ$¾z¡Í»2ı{4Š†ÌbMÙc$ì©T ¾„3+5VˆïMèXmB¥ıáÿØ3É7vºş4…Ø±Ÿêï˜wˆB‘’E&›…û(ıx+"É$
+QOS›ƒ3İcwS·pôä$IªÍWßî†¶»¡m1©p7´İmwCÛİĞvcC[eÖú4J›Ün2;¡ëM=°CÓmbüøéñŸ.ÿéğŸ6ÿiñŸ&ÿiĞÏú»!ÎKgEÀ(¤°NÖ)‚Ã:Æ†ñ-Öİv!ë]sü~Zü§É…Ì$ÌĞ
+íÑ*Š¥‘Ô³´Ü¶8Ñ!',á,0(Õ7Äïºøí‰ß®øíˆ_ÌB@—-ZVè@bV4İôäMWŞtäM[Ş´äMSŞØÁ?Ÿe)²Y†,B– PğÅ¯zC"ßÈ7$ò‰|C"ßÈ7$ò‰|Ã|C ßpe)²Y†,B– PğÅ/rĞt ŒÛá|FwMuG˜·U_€ÛênCİ­«»ºë¨»¶ºk•ÂWIJPh)x-¯¥êĞR Ze š*I³,IC%iØ“lğ¼tW’d]´ ¿kª»b?FÉu0ñboŒ=ÒqdT¸%éåˆşJo@ØÏB‚ïH0dor,å8b 0òÛ´Mhb»s®X%3
+‘)hO½3GF>îÑÄAzùÂ«LÔSîÇ/ÂV›ÀµÚà
+)ˆû¡<óıôĞA[q™d¤Ñ¤_òU¹Ş+KÀ‹=ÀbûúN½r—'Ôö™Ãœ’©|ÙŸ%tçÜş_çíïƒ(İİS¡ã-´“Œ@ÁNXËçºn-=’í0İƒ¨×¹]33=„8N‰ó êR*ôBşìïåšg…rTÉ´nI(l@¬Ûstéaƒƒ·¦×ı¾Yj.+ñ‚—ò¦?Ãû‡¨?YÂh\†ËDOnRşšYmy•»+Ñ¯\È“²Ëº™©ÖGªÓ_õ-¾'ô«ŒèòR,’[Ãd¼‘ë‰w3tcO‹~‹8Sñô)GéŞÛğE8:g…ï	×®E4U(
+§n* Á½üö,+®Ü—Å¬$ó(jYíÏ%f‰w¼,ÃÌ…åİ•ú‚e »ëx»…àóé:†byj†[»©@Åõ·Ê¾[Ÿ÷¾Ş{zCÌ+Ô’‹Â›k1®TvîØ–®ÏÊ¶¢-„)×Ø·ÊºÚ²ş5™×˜›\ä¯Ä¸¹ÙÎÛR¡R‹à^Bu¬CÄ”Q¬+ıo™ö.-ÂMÙ•Cs–Ğ&§ÆÓ•ØÁ˜êŞ1ZÂ¨À
+º]r	Fà…®7¬6‰‹Â›+k9KÇKP¡%,!£>Ø"os^‚5²XQ×aÃ<u‘{¾kä^wŒA…–0ÆÜ…j²…¹š°SÈè_×a‰œEò¢ğæJlQ°sŞ1ZÂV†Ôkä£È/ÁY\·ë°‡Õ8}QòşJ¬Rbş¾c*´„aÌh|¶1ƒ^yò‘ü®5èäV1.Š¯®6ôVGîx†
+-}dÀÅâ $(y¥1(‹Óxö]q5Ş\ËsÇ!f¡¥Š+¸jQ\ÍíK)®2NëM°‡Z¼¼°¼»‹hË¢wL‚WÑh'üí~Ş˜+ÅºU{Ÿ}İúÚæ±&?›Å5KÂ³ŸÈVŞ/¯Ìbòl=vÑe«ñK—Ÿ…õÍ_öNµœO{cYØÒïfùµ7Ô#´Ä;õÕ:;.¯ë•ã˜Âò~Á¥L. Üt€ûğôwen"÷ßYÜÌ{U/ÚID¹[ByÆQ‰¸4½Ç»¡'á‰ÛºBÕê6pFµ…†ĞyÇr)sMqW£ò¬„©cØ¨SŸ%~:,ê¼¢¼êöVÛ;Lı²&“ÙÌĞí¸—D_M^,x»¼ª+k(ÿ(gñ`&»`ŞÙ{¶ú‘Üó±4Eg~¼¶Ò¨]®ÖhAz6pËj÷&û2¹ÆR÷Ìâf~µì0Ik_á-hi`†ƒh’Zìú‹™ó­0„9x+°5¿f;\Ôdh…£LM‹Y˜àfÓØKf1µÜ25M‡>û³ÜôÌwh[µ¶–4Sd›¥LØ–s¼"ËåÂ{
+ÔÑì-3Ì,:˜ü o¯²1-ŸSqsŠ½DõŒ× BÁ†0×t°<Aäœs-Ô$r	2È<× €>#5^¾Ş™“â95×µ²ºÏê›bÆf8»™ßCÑQš¹,ƒV	ÖúRöM–;€¿X«GËâŠ~ùYMâ‚Ãùìcù1Ì•g-ıbİçPÔgí»Ôh¥'Í³zğ”šìĞOq°Š÷bÍm¹mÎ+LîfÍ¡|§fØæ£U- µÙØl
+§n­Å]º;°ì|&CóÌo‹“…²9Ö'fUÂÎŞ²hs¿Õ5Ğº_ÛLbßÇ5Ñ)ëâŠ™ám»·f(f¥“*[<lcâ°ä|AÌ ÷À÷IççÇİ
+Ó„ëÏnµÓÎ¤b>Ğ5·ŠóµŞTo¼œ¯J‰K¬±Úç^0y\Îó•jÍpÆ³Æ[”U¹S“ö o‹­T4É,0rÍ¯ØB¦_°§ãŞYn,uj:årSÏ"¤ùâ¯ÙBR\ÅV7_-VxÁrYBy‹¡®lÎİÊ~Ä£€à[ÀOšE¤ŸÓÒïË˜@Y|
+é>«¹ÓEaeùªH°8D üÅØió*£§]¢ ¬i}0MÒhìB‹!I'‰–Š0\Z.„™Å¾·ûHÊÚÉº2ÿh¦{…r0PßÉÏRaÚŒ[ã«è¬u³^ŸLÉE²ú(’vè§òà|}à;oğùnem!ÕÇâ>›üÇ¶ª5‚PpšC¢ıêE88Œ
+ÓqR­9+98nêÅYd{ş‹Ì
+Ò¶¼ÇÕó#0³_s_åO!/3¸`€ûğësĞ{¹³½4Ğ‚’²|	…&ºç¯Ü 9ò½p:±ºŸçŸØ¡³;Ÿ;ºæ»¥ïŠk»§£nœaŞ1lşd‹Z‘ÊÌ¦õb2MN˜ã`o½OÊ.^ÕånU’Ò¬3zñ®rŠ,UqºySş‚y<Ünjö¤ Ğ§İ÷Y€¡êÏUŞ£K:«·”İ>W (ƒ{Œ#õvS::µ¹/:èÌ ?<,ûŒsä¾ÖWÚÿÓÓƒÇ[¯¶¾ßÚß¹,Ë…®ÿ¹^ïïì•æ˜xIrÅÃB®—[ûûÿôbï±='êtüHÆB°;†¬[3ócGGAœ¤¹jòùË“İ½ıW”Fv4£Ys£õn^f]¿rî âOgeË‘WÌ¶€¼óÊ³P™gGeĞ,Â¡sƒH±V¦zö¬#/<Wj9¾ØŞzZ‚&_ÛœkÉ·_ïíí<ßşÉ!Æş¯Q¨Ãµûlç_^</)hçÄşY¤>Ì®æ8/ö)î^dİ§±&Ô„õ`i¸SÅQŞåÏTƒĞôãïV,ìY½Y,c;ôéVpàkA%Xğ·W%›v<ÄÇÛÃ£5ÖÍãAÀ@´B=†	Ø$@l¬Xœø£Q´ Fñ¦Kzíèº®{*»(Á£`pğŞ?çf…b‚88Å¹¥(ø¹â#	Â‹÷†vŒ~2àrĞà]p6¾ØÈª¿ËÜ°ª‚8)CÁÀıIäŠÆÀ  9
+Ï Ä,\öŠB¯¦1m B€¶æ"’2†KÆ'š¥šÌ7ô'£è|‹ ÌJ]Ôı°µuiÅv9œçá¾¦èHŞŠÑIqıÆòÁqp Æ»úJşÅ|'ÅÖiÍæ×%^/ë´úì"/¹|…q?YUSxÈa™Q]§ŒBŒÄrïß›†_hŠÑÙ¾¿É›8LKarâì¡ÓâMtF^2›Ö(¹ #|ó<”²$"Ç¢|K«ó$ƒŞàd©ğ+³ú_æ—Îü2”^S/^5ä«uÀYâÕ\Œ6+6[Ô-°m`~íÄ6åêµxíä®ƒåëµàº—½†O¢x@¶r’ÉèÒ}î	w”íæjh›wòÂQØ¦ÀfùhÅ
+'İÜ)$Œ6SŒ<E€†éCàÏ2yÌ«Ğš!¾fû{_VL
+Ÿû—$
+•À/NSn´œjiÀ£›üfI¶ª,.şuX¥H_e˜)€C…¥D}[8È¼EºŒ|î¤“<Hìçûı£hÈÆ¾‡Ñïn¢ï­ê‘›`É›G#4¸Y«mKî‡«py*à]%×£öv²G
+èÏˆ šf¸gÜæÿ®$Öò¾Üšœ‡é/u1kè²—@ÚÃì	[2òı	kvgQó¸iŞÈùßäÆ˜¦8°Ò’nN“şšˆº—í¥æwt+S}İ_ÃP)5Õ9]+	0NPô-ö¦±9åX¡«"ïıl‹¨Â`3ßprË¶ÉÚFÀòİ#9§f“»à¦œ*#†`{›¾M‹;=ÖÖØÚJÀ¾fÍû’u‘'¬V£5)À ÷‹á÷´Ó¹Æ4·ä½©
+ßxºfsƒÎô°N]’8ë¾¨r¶*$ÿleKFÈ5WËxÄĞkwÄòòL™©¸²FÁÕö¤&¨	Ó”9Ö\wàƒß¨Wmù¦•-œÔjÖu1ŞümDÚÇÄPĞ£¤Jtº"]_CÌáe9Ù%×0)k=]Zaê1wm»|¨Nª*Y€]Ü_0U56òÌÅ´Ì6™&·'ğnš2YßFSˆ¹u5¥½l—Ì¶nÚ²-3–‚ t´¯lUeÁ­le±PQØéœáË	g¿\\¤ é¯q<»¸ ğ µb«ØŒ_W)V.qÌ)6¿9Êºà³Ym[¦½X5ö™0E§AK5"š´ï4s®IoÔrZÚÊæ.áœÕTw1NşíuG¨¹ùvÆ’¸ lßJv›ÿTh(õÂZq{‚e+Î·F½$¸rÍØW\ş%ËÎ|Ô¡Ïüñ$=¿Å î€`wÅÙû§ áÌcH/9®^ã,ÿçª²!ìu¶ûåÅ.³˜PÄkÄ"ìÀŒÁ7™ÂXuA”÷±o-»ø,¡Ã±
+ªidÉUÕ(+%¼T-|Êh^F/ëÖ9}Ô$İŞ§Ï^‡ïCŠ»""¼±·?¯4ßşìRdïâpÏoæ^1š&Aíàà:¸^şƒg¾¡ö˜!¤†27Î
+Û=İEÕ)pCÿĞb
+'ii¸ˆı*áG„—²‘ï%šÇWÀ Vdà€¿¢1ÅÁáÀ
+p¶àyŠôÜw3hTqB)Ø!¡Á¹VœÌäËùñ“©aŞd ]Š`t„.ğVÏşR%2B`ˆÓ…%çâÑÂGsíSÔà\¼’ì "´Æ·€æ³KšÜ…¥ÅlÉ9Fd1J‚^:O«Pz Ã{¸î¶åÊÁl/|ifÊ¹YƒÒnû‘™Iœ43N¸ØÃ®ÛxT(/9ÙrNš0c+OZyˆOMÕ)èã -AÀs£sv¶ÈQ¼Ty"Tò(¨P	Zœ+¥®†ØÃ»ñH¡c°“µa[&RáƒˆçK-C-ïj†=l»ë¹–QGİÊ°Z†T²À2„rMØCŠ&’aÄYÅœ-e{ÌtÔBˆĞ§å*ÜS(Á$&.Ê[3{H·óìÉÕnâ0W‡Ål&!$–a¡o×+6µÂqX¹z($ì!ÚCTE°X¨lµßÎ¯2ÜÒB°ô o€–:•‘Ã+I63D’Ù‹ÎbòÇréÇGÑî+q-ÜkØ‘A Ú‘Nu’j‹ÁÊL!QV#¢„ÄØOp¸tãè½`Æ²ò˜Lò9¾Ï<uÙÄò˜²±ñ#NÙ¹6`?:ó6¼¿PÃä€²î¨Ç®²]ËE”'Ch.^wyl,¬‡5~…7šBŠE²m H‘â†ËOš‡Üñ¼8$Lmƒ‚•¿àqÏj%Y1‰-+å+ËCûÊ0ç1ìÇ]Ä¼+Ç#¯-§·AÊ¹nÉ"½ÈM$bú3‰#×¸Ö±@2ıCÑpÈ
+^ı0ô§Çp
+w2v¼Šv³˜§"˜Jå‚ëTõÈ:UI§V™‰¥”¢º+kZ+ÃWõ©–ƒUã/Ë’ÈÌX/xM'4i¸b.0D_¹W b«ÍôtUî2«ÄQ5Ğõ‚·ÙÅğğ‚ëB4Õ…Ñ ù/$ñË‘§E/²Ú6¹…V5¿<ôXØWrq± k(x9æÈCÍíÈY¶ÎhyÀ™Çe¡f±Ÿò0K}1è×\§`…IËÍjy#i–…üµ47Íp§ÎîªpEMª¨¤–†-Âë¯Ù.çæúÓj£¼c1¹d­uâò\Òz^µğ2=ká•³v(,v —z0Ê¾_JKÄµ"=K›ÆXhÓğv
+Y®YW­y¿£±—ÎÛA‡%©´H¯ıXéhû†ÅÙìb>‰”›]ä¿Ù…}™8SôrKËLê–´v-ÁÚ)Kµ†ET„éÄJëòşT"ÆI1Y¤@¾)çFÊêĞ"¥Ê­Ä7T×ÅÔ/Š¤|íB[ã$‘œ’è36œ=©Y›Ğ/¿3ôK!‡Š“˜lEƒ×ÿî‰Ùaå}tXS©ƒ²Ö¯öí<8—672÷§Úólâoî‹Ó¿•ïÖS™ûàäUä?J¯8óØêoÜaÛï…énè‰9ÓÍ;V §]†õì³Ê"×ımxÅ»	æšOÓ2ÏÇEªŞ¤Ï=euÕqaÚ–ù`º"1¾*³õÉ)Œ­Ur6ºâÀÌ'¹¦ÒpfØN¯e¾‚}Çl¥=nD,åÚg»8HÏn.îÌídÓ½"Õ†Ã9Û	?Á€ˆ«}ÅÙ¼)‘
+ŸózĞõ†ËåZµl(ıí¶­‰ñ’-|ıqçZ-l*#W›–kbË¸uc­[ô®16,W+ë¸qãõÒ›ôÂ.d•õ•oÅDÍõdE¤¡C‚¹3ò–#5Ò	Pª…@PÜÍ?!S<l+Vš¬JWÍñÃ¯°|ë™6â2™EuiéÌq¢Ñ(:+?T†‹aÆ Ê—µrË”:]ùæ@]FY7Êícõ3Ñ„Ëş#78I6µol´43_QTP¥çƒT´pÀZøâr1ßÜ×v‹'Ğ™é"NôÊÏZİ¨O½ë–có´—Ù$—ğlwmD®ê‰/+çÊîø–8H¯z²Ñë2ÙKZ	8rP·²&Øi’äŒÀĞëƒQŠŒ6òıQÏğ´®ØùêŠÊõ­b¡N{ë—ùeâàJd•äËƒøÅ«åß%úwD<²š“]unåq¸±öwJ+ÏrD7Óùñ¥ÜùÜü¡¦O7Mfi¿#tÆÍÑäæ™9šÜ‘8§hŞ8+Ã0xzôwOfT{s¤•µ²«ÓªZzcL<ÜïcÍ.@¹øÒYùø… t‰›²Xµ¦çÈ|yõoj„“¥YèM[ÙjJ›!?~tw_^2¼y±./ß¦ø÷]Šû}Úäwy¹Êå—ŸÑßT5©g%Eêõo¾æÔ¸©wñiÿ­ÖŒéÒ5záò~SÓÈµÙˆ8û\ÕkxAH¬&u÷«:÷œù¶ş¶şŞ4«ê(;î‡áy3zcf:Eíüb,Á—Ï6)™˜yoæNp_	ÏÉØs¸Šùõ\”Í
+³°6ÌF7‚¸QöÕ« ö"ÌÂ^ÚpnqYb)ÎY¹/É»{	'Š„è>U]«¿úñ#9(`.7õ¹O±¿&ĞZ­ì¢.î…¯bŸÒgNùN„{;k'É:-E*î;VÓ™éÍÉƒ¡Å³´>·ÔlPü#dîWçyöméaÂÏÌM<ËÓeÃ-ëçÊF¶¹èâB¼á›ik–‚l+,›_Û‹Ïä
+Ê;r-Yq-föº™ğ¤Q²”ê(%„$SM”\Z(2à¹7?õ'¼+Ğ5-ùïÆÆ#€2"+ ÇofĞ6ögÛ6äÔ›âÒE8ôV¸óf8ó&¹òú¹7NĞ
+*BwÍq•UNâI‡¼Mu¦bü)”b«6›Ù«¡ŸEñ{DO¡&ß>=ŠeúösßOĞs>F–ÇjwÖÄª¯ğP<Î…ç‘C<©FxxŠš€8â¥—ÍNlİ{nŸxá±y)J+
+êøvN:¢°áÁğ\¾^MÌ{î\_J*Öø*æìèUı€…n[Ãµ¢ÚÍh¨äCYç„NU	_EÚgæSÍ=V~ëigâßş,ñX”tÂ xGÁ…)èìµ¶˜fçT^¨”h	³¶M‰›„E<$ˆ1­*»×G¿ùĞ-|d v5?
+–EÀü¾Oó\¹ÅUNRÊ¯áÖ¹l‰Ş\5.)†ùë—ZZ.?¤TRô?ÓÇOUôğ°¤ØÇ‡7PßÒbé0VIÉäà“•\º«˜Ê¾Æ×Ê³•0¸Æ†Ç0˜µgŠÏ/Ÿ‚ åÛ yËÄµŠ.-Üz~T>¥e£™…Fg26út2ñã5Ô8’~W÷Yşg5øOÙbµoØåª­œÁ‰£îiˆJàÒ P’RNß”yóË•µµõ&st8µ.ß¦1#c§ò¹Xïâî¾Y«4ºkÏâå5¿óceM¦ÒÏ°G¬©yÁ¬&UVÓw7Ç¦
+‡´#QåI¤…ŸkÉe˜¿D·(cnñ¥ƒ0¹­’W'çÏû7DPíËÕI:cyk{F“Éß5åÑœ«“²Ô&9›Û2Üïš™aözD4–m[a |ÌçBí·¶O	û2ÃÉÌ·Ğ'èùF#ĞÖ“›İÅ¥6î•¢q_LøSGÙàš§¾İÔS)’YP7ïÏXî¤'ÊÉ½xù„>f›%³ãÍ…|˜®iPD÷	ïLÑg	s8]!íæ×ée0ÇUüaÊp›Üé…V!˜!şş*¤-„6Q%B‰ªà¡U“ |?W Ü Èç›óœ·“»ƒ¡?PğÆg¯_!>WğàñîŞÎö«{?õ‹›Ø”·ºbÏ¦R±¡$Ô&Úó³¬|'ë;™ğĞ­?°¯n#>}qnF{•[†u’ÚK;æ‚êº%+çÅfÂ6EbgÜH ]³l(x	UÒ…¹fÏhÎqàYQÚÃnîp)etù2Oô'úêÊ9›,^¤ÈG”pá£áà[´9õ÷——õE¢¬^(øÆÄ´‰pÒ×Né¢ò#>Êr³oöÖZ³"34¿üòëµzMë†¸Ø)>/P¿`q9h¤à•¯ÿõ?ş§¢£bLsˆ^Uy 	gÀªÈRÜl@&Ãà™mFP¹rgç’3Ûò•Xq†WğÂûEÙqa–¬Aª¨?—áE?ÎæI;_rŞ,oê£OÜÔ´Œueó[jjÚ Äb•4kóÚo¶ÕóŞ¼q€éW÷'ş 8
+È…,zŠ|îŸ<T`¨A[Cm²·¡NóxIÎå¾îË,?Í"ÉĞoÕ ’_ú¦ıŠ€‘9'b8ÉùÂ—0T¨‹x@Ë^.{…Ó#Dƒ¡!ôËÇÇShàƒâ…Ï‰¾ ¾'ì!	÷#}x.6Ì¡ÿ½W‡è	!÷”åéÅÈ;v™ïÂ¾ÒAIñ.¨vD¬¨¤ñ4!Ş±ş.OÉgf¡j‹—¸o´¹¦²ß<Ä’šÄMëtÑwe‚‹N ±Rx½4ª¼d;Tt¯…Ëy'Ä:Ü¬@·m–İ\åîKÆd=Ğ	3Í–¹Jİ-ïş¦“¹o®äYn†ó-VêAn‡%x½doä¾µüŒ,#©H¥Z>9ù››$'W$ÍRë‚¸Æ¿ôøü©¦ó5b®w•Üsd3]¥xN½:Äq4dÓ¯?0·®Û*®	î‘t;üë‡Ão0P”ˆÉÆş0ğàªR÷ÓÁol–¤O‚,s$sµÈ,)ÓÉ
+QJpoœ¡Ìa ’£üËy±GÄlKï¦EõÔ˜sı»å˜{J‹®7º°¹MçZ]X/cÖñx½KÏU|©¡µ¾]˜<ÍĞ¾—šWi-Ğ±¯ \Z¾’AjqÁûäEÖ#/T¼½½ŸÖ¿)á&K+(5Ü‹ôõƒï¢cfµ¯ñšFjZfè·S» Œf!kušYè*4¸R/ùô•Ù=åêS­ÌÏÜm´áñŒş¸Ü Üuøü®ŞTÍû¨üÜV“~ÇÖİÿ-X7`~reëFr"¦3%6üºT
+J‹ ¼¦ 	+‡‚¸¨’
+ 1ÛÑnã(To«”vcV½’ËSşêV¤ÃòsZ5+ß„UCÌÚ?³UC`ñ­’¤"•hyÚ¸™9FTL°fä6ƒ„Sp±Mgã…ÑI%Ë,Â`KµÄ9ô€GÃaŸJ±ˆÿ\:Ş
+7wø±ılÅåG¹$ëğ°ß(NI—EO4aÈ*aòY¢å0/ä´-3éå©.œ;è$iŞz2esñ¶äƒ‘Úù§ş¨ßY´(¨l‹R.|"&9ñ4Ö¼–h!P9Ùbõ~ˆ×4¹ğ§ ˜]xÓ‹Ä»øËä"¿ÏVÉÁR_1•–\¿¶
+-?òe¹•4(ôm­ği’ëßàEÏ|gF\$W;*!–³™Æş1åÎ	C±CiÛ€˜°º¬­ôºgÍqÛ
+zXæFC·Ñ€ÇZµtß#-ï7ÌŒ¡®âı	˜	ÁAÔgíøŠ¹†¢ôùÅtäoòØElÿä}4
+¼øàùq½¯UõüZ ö‚7=P%¾ª>#PèÎÑŸÂ°úÕl[ó®Ú‘w­š/bkVÁUy­EqtH÷z¯µœc:!Ö~“¨•”¼ò9R.Œ
+ÓÉqìgLŸdÛ–]ÅƒÅÄ*sšû­~sÖÔ†s”Ü“gr…0õóÚQ:E«³j2{SÍ!F$s<ŞŠAh'¬áÒ›n·Iê)z_s€Uß%“.q¬ö´qù“ãx9üôt™ôâÈÕ‡ÿE/Ì2'·xc-â0 M)%}œ½n®|D‰v	dÉhdc]#ŸÅ60YÁä FÇş–ä×¾·£Ç]Û“çe©ùg¢É âÉÊÚÀKµ¬µ\ìúÂT^êÆä}†9€MíŒÑóŠ3zêkbì–DNQ°q>ò í³t†ĞÛ]RO'0½ÁÀŸà¹J
+FêaL`Ò'rÎî‰!Üe;\CQğ§¨>lzÁˆäOó{òºşöçiòöçû˜cÊ½‰øÏ‰Çÿ"Ş!Âûş\Å#æ qøàÀpŞûè<‰£	 y4IFîŠøüWœë¼o>d˜äŠ
+Ï‰¡’_b´eÿ>;hî¥^?Ò“é!¯—ŒP š•^œÈçÉQG±©MÍ39pJ¿á”xÇŞpåÌ°1ìq²kaØ×ë0ÀÑè¢ˆo!ñ§òÓÎ©ˆï<Òq+	¼úKm(ú¢RoM“4ö Rø:Q±(÷£izÂ¶Æ~èÓ_¬ô&Å$Îâoî†C0Ó>r5«F‡9Å“^'#±XOúæbø’KËãMc ¾ïj¹OŞ(=@‰ôóyÂä€|Ùd‡Ğ4	"J¯ÖùL®~Ú9uñIzøY}ü|ßıjU[Ûyş˜É³kÏ÷ğ<Z5‹VäGãyÓi\Glõyî¸òÎB'xk°BÈ,A6ë¹@Dù1úJø£éy´¥¹„*—Ü8 áÔ°‡ÒgÍxÁ¾Æƒ/FbÕÄ_÷3á“Ï[«±>³Tå¶Š¶ÒQ^†[+Î44½zÿ)ø AÏ¹-ÎVQˆ•­ùÏù:#|™ÒnŒø¦òºL÷«­õÃ“Pó9±Xñ|Ğ§¤åà=ù¼÷yğÜeh1¯âºB£Öá¥‹…r]Äğ×[–VùB"ƒZ2İa>¯˜V£³±˜nı­…`ê|Z"XGi˜ê/I²y“õè ¯ùgÌa´Õíå8a…æÔ7—ÃB!D9¡ôƒ$Î§çlTÂ\M> ä2&ÓÃ¿°jıEô™Ö`Ş×_¼îï¾ªoË 'R4è(ß’M’·ü÷‹–¼
+Rwâ%I=µi-·²«4Cşl‚C²Ã‡nãN€)†ŞyÂÚ½nC±†ı’‘½Såšd{ËŞô¸R³½å@	/ä˜Áa"›…É¶·¸[°´*õ¤'Œ¸øƒs7ø)¸#Â¥Ør6+´¡ÅÂùzÍÕøĞ	ÙÏ*‹;lB&½$yè4_ÿ(x?Ú/µùóa¡XÉÃÖ¬e®(µÚópp­µºrÓ/‚6¿š}	´áj(¯sä1Å(ÜI<À8Û´)¢ ÍRbş[Öó6„gšüç¬ùÍ\ï›²€}ér_y_ƒúÙÑEı²,–Gˆ¼y¤ ƒŒƒPë>1Úºt[˜Qa‹`Å÷›ÜZ¼´Eğ:MóÎl®Š–õS¶õ¤Y­vf¤Ú²>~ı°Øõˆ&ùuµüu1±s%–¦/‰«;³Œ¾
+¹mMkmíì¸s[ÜKûr¤àhíùŞ£nì—«‹`[²9b’ä ;"Ô¾‡â‚¨øøÆ:¯ã[ÑVµ«-…JjZRrcúùxÔ_"¨JÅ¨.¼ ø4â~ñêÅã›Œ<ö‘+<y¶]Fu¼”™ØÃİ]ÁªˆÅb)²9A¤Š’¦fõfkC•.K70îš§`Ğ/iWÔwĞîy;Èê­Qê†Ûb|j©¹å•{èqın÷É>7r;…´î¿{ÎÚÛ*š&Êh,`¬¬ñÍˆ–t5{î<‰Dİ0Ğùªs+õ°Âó½â
+Év¦q4JÈ;$:‰£0ø•GŞ’Ã;ôÓ3ß{=±s·İÍ3Ö£Ìx#„±İX/V_t›7Ÿà%VrŠÄŠÌíèNH$€»Âw¾c¯—tWH vÜÂµÇï(Ç°˜¿x=¡;*´) ‹"#µ‘@|ı$~±U#7¢ókßáüç›ÒÉ_İÑ–³NUôOî”ï'o±
+úTGm½ÃK…Gšß–>ZN³ â™o•Bpì\·Â°_ØgBş[Œ)h¶´ax²7ÄÃO–÷—2äï¬M€ÆF´dMü¾\¡ÏÎ úıF>öÅyò¼~„§,qÜíƒ«hõñ7™ŒĞŞƒ°5oóÃã ¡‹ IB>Òg,Çá‡Ï„ŸØòx@2é·Œ ¹öÁíNŸ	ãØÃíø~DCÖn\eg(jb«&’;)İ#)ÊÜœ_Y™òt0Ú<æ‹´•¸ÎY€ëòQäØø¡,kÖRÃ]292Jø"!EÓt2M¹Ïy:VZ-èB=)í,í¦¤¡­;9³ÏşâÀ£şj‚‡VßÖO|o”pŸÕè°¿øâxOqS¾ê“ÿ€hÕ,Ô•²t%€K+[SÏ?6ëÓ$1i?@½º$•å'~½á˜AÉ.ÊÕf‹B!z‹ø¼"ª"ß(ªU«ùÄDXƒQ 7íñŒ‹2aÉc#:÷İhÚÎo`4®Zşö‡ÜÏIëÏ†…1ªVË¤N¡[ıÃMÀ¼‹äZîj4ëİ.£ß^~­ÿk¶»^·Ûé¶›¬Ñì¶zí`İ›G¥xMqŞ¨Åş·O½/IÉfÀõP¿¿“Kki@¸ñ2®Ğşnç®ıoãÒÛŸÂO‚2®ĞşÍ^ó®ıoã*´~üÆÊ zô:ÒöoáGlÿuüÜk@û¯7×¡ÿ7nƒ×ßyû¿¡V¾«T¾ø‚máF¤B“açÑ”xüÄ6é
+¹tI‹ÆY¹‰‚À0~Aú2‚zr€!«p‹Q†ÑğÎ0"'ÁèAXHrMGN„âQ±¡rY\Ÿïÿé©VL;êC/õê8_É2|…ßpÉH/_ÑöxÜ†ÄH¿bÓšœ=ó/ö©2<C×íIt}Öê6\™_¤'~|$]ÚÀ~j·nê%½v…P÷3ïrR[‹åfV¼úXLe„˜´ÓxĞ£æÚÆD"¨™)²ç¹Ò îPXWˆö%Èô*¿Lıø|NJHÚë<3’¦ç“²¤MBú¥;öıôèæu•‡ô0«¨fïAxS~Fm™TÆŞçÄ÷&§‚=wŸu›­g•t<;™ËyÎOá6uæ÷jŒ}Ü¸eÉÚî5„ôĞ§CI1OÛ1“:ÄH¶ÔPq.S(¹7EgşĞ™àÄÄ‚„¬@ò>˜Ğñ&zh4:õù~
+Åñ¦éIåÌÒòÚ(p­(èñì|wëYå½>·±8=«|1>oŒ6é(LIÚ'/ö¶wî¿µıÇ×/+"Ël¦ ¢´6x3í‚Hyü}EH‘cE#k¶Ö«*©€H+ûMò fƒó2"å-İ $:ğÒƒ4ş@{‚4ƒ
+(?ñ<XwdêÚaĞ¢ÿkˆ7SÆœñ¿Ùk+ıo}½úßz¯Ó¼ÿoãÂ•ÃÍ
+“ÖÂd“¯GC“øs`“dÈWüÃ(ö7…ùâtlf‰&¸K/BÊîèhÏ(²‚ùí±tü"À\—8ã‡á&'Ş&së.ş¿¤!¯N ı pûÆf½>Ãµ§á£‹òÊõA2É}€ö–Êª*½8#÷ËŞd’ÿòCM'Ù“šä-'æ07úş|š ıHıW{D•ú£\íê/3XĞ@ìÔ'q4œÒ|"î5Kä1i;©öÄ™À[£_şİhÇ¥[A/„7äYAƒc4ê!v“­ÊØ™—N2 ¼?…Øà=½N@¼á{™†§˜DIğÁ‰½³Êmõÿ¢ı/¾˜ïm¾Ö`0Oşgóœ¶Y£Õj®¯ßÉÿÛ¸ÄÂÊ&«¶İnµR‘©7ÑšL+˜œCE\#É®Êçœ|™n7ã(KaøZJ‚·úv	¸«Ëíşq1{5ôGş±&Ç(²n’Œø™	¾:Ç—Ì£c¡ãbVÔgáÍÃ‹şQ×UYñ^¥›Ûÿ‰®§Îéÿ^³õÿNû£Ó¾ëÿ·q•÷£ûgAõpN¹9{ÏåÀu»EÓ¸Š¶É 	üó‘‰ëé³“e~şÃîóŞtšnsı¦Á“@ìEæ’¨„êÃCu"‡¯#ãé"­×ŠS?.w
+Ó×œkfßÈãîÑ(|9Š#ŠœíÆ éô„ºnÚ«I9…­ôLksÔBıgiÿ¹ıßˆ¸{590wüov²şßmAÿowÛ»ş×¬şo4ırrÀÈº <(æ±Ê#™&vní¿ÚİŞßÙÚÛşqÓé¹†˜˜âXLî<¯'´‰³ßÌ}ÂÈ)FóLA0¾’ù{	£ô[!ŸG İ]Ÿõ*Êè§7[Æ<ùßît•ı¯ÓEû_¯Ñ»Óÿnå²ˆ¥¾ØÓDŞ+™bëñ3HğzïißÃàö¹÷Ov÷ö_QîŒNòQ2Ó·Ç‘Ÿû´Å>íÿò¸ÃÈÿîxì#^p®Üı=!“æ¾¿ÜÚßÿ§{ûx.$á°Ùj«$O_lo=İéû!€Q/·_ïíí<ßş©ÿzÿ±zùj÷ÙÎ¿¼x¾Ó¾”êÏı³ƒŸ@°ftxöÓşŸR0Óï·ö±rŸİ’O
+Sûç½/^Ódµ}ö§—?¾ØÕ7_½|±—E8äRI¸æë?ïî½z½õÔvÿi_«zfO+¾Ír’¦ŞGE]½zùãËşºÛÒòìín=ş¾ßl¸Y3íí<ŞİïwİF[ìòÌ`£|özoëûïw_=ûS_/ñÙOÄı»­üš«ÿÃüi|N=şÊF€¹ò¿ÙTò¿sĞÿ½Şü¿k–şŸ5ırÊ–oAÍ?—A¨ıÙÛz.ÁŒ)ÿ5¦ù‹hõ“±7K—Õ)€Lx–9CÁ&×µ5Šâ×MGˆıË’èù¬ø²4Gi3Êzùl‹0eÍ¥YW0í2Xaúeqú[O~ÿ×\ù» æÈÿv³¥öÿ5º-\ÿi¬7ïôÿ[¹æÈÿ¥ÿâ¿ÜÂ£ÉX³í€2·é€şhXtü ¨é|ˆ&ì
+ãì«½­'»<ØhÂ“ôå²
+ºæ‹\
+sÈA¿Ü{ñ;Û(Ã_ıXb×YùñúÔ—CuÜ„åş%2³Û§Ÿå’0·,µhñ<6“–xé–ây?QƒYZ(û`÷ñÎÁö‹çOvèóí˜Ï¡‚%#Ù¼¦_¸†‡Ëµ€?Ÿş"¡ ıØ‹ÊÒ78Ğ4jÓÁyÔ­¨ jŞ›Ï.?|Få¥Ğãh£H~[û&Å|o£ğÈêµµÖá¡¶Ô:
+y9œQÁXÃ Y!(Ë‚<‘¥lÁËË’Ó4zÓy´!.ÔáˆxÉ¬¯ËÊËúˆ§Š^s” ²cûqèÄV°Ï=¦İ]‹_sõ?qñ:zà¼ù³ÕÍÖÿZ8ÿoµ×[wúßm\ëÿ¦\@,U‘iÁúè©­5	´:ÉCì ¬[s+•Ñë9~Ÿ;î®«\såÿ(§ŸvÿW³Ñ‘û¿zh¸Ûÿu‹×‚òß®ZÃÿöÍÖõ[Ùª'»ê†Ê¥ê1«×Ø"úª‡Ú’}¹“æË×\ù{‡‡A:şåCÀ¼ı¿ õgëíÊÿn»{'ÿoãš%ÿeÓ/iË¹5gèÉ¥EC¬5Äÿ¦ÓvAÿ{!¤D#—®5_Y/nv{ë­ETcÕ–ÙĞ'3åÌIFÍ—İ¿gÂ¼ºŒ¦ş¯Zİ ciWciÿn³uçÿã6.ÕşÒmšDo¸Œyò¿İZÏµïNÿ¿¥Kø¬¾ö‚ä:xì»‚çIHêso|(Ô¿áŞÆ ›&ÂÁ4=r6Ä{òf@®Ìë4:¬$é6Zğ¯ÿ:¬şM¯„€g¬.°À÷iã«Lÿ¥ÉI©ÌA=åÆÜìÓåb®Ïî®ÈËÿŒ’7YÆìşßl­Kûo¯Ñíö:Øÿ»­»óÿ·r=¼÷øÅö«Ÿ^î0lõG•‡øŠTxÜ¯úaõQŞøŞğu¬‡c?õdŸïW_¿zâlTÅ§4HGş£,LÚÃ:£eD	Ò¯ş*]UÒ(AƒëWÏ‚azÒú¨y:ôpŸ‘7oä$ pü~³Z4ô“APØ\V†{Ì=¾>.µ•Qòö“FÑêaŒËñQ¬}<Òø\E¿0?°×q4ôdî$=—•Åë0kâ¯# æyã`t¾ÉÆQ%oàSLƒşH6Y³7ù`~Lı¨íÇ ­|ôHc~D£(Şd_eá:³ˆ0j››‡şÆ‚ø˜ƒ@õİd«lÕ„ÓÉ›?„ğ‡æÇ‘yæËÃ(M£qáõ¯’Êœ¦ùš}}İ|i~8ñƒã“ÔösÇÑ4DÏ,¼îÍF§stTšLÌ/¦ñh­JŠ3½¨'§Ç_îÙŞ†[·aÒ_EGÔ›uîYÛâãzz6&^eÈÄßGú«ºk:üƒFcõËö€˜D£ócÒ‚Ñ¨¿úe«İêzİÁ`ˆ„) ~Ğ]g.ˆí˜dßƒå¯—Øèy^ÀÆzË]D£ñ ç72NPfí¬×k±æ¼üİ#o#Ëßn¯/™£{ÔÎò7[¨	tz¬Ùí¶ÒÆú<ßëÌ‚ĞlöZs@ô sd z&ë=è²¯Lo}NşöàŸåïnp"äàÌ"bK/¿¹Şä­Ğì4 B»L>·[:3A´{İÙÜÔj®„ ¬¨Ç³ 4›ÃtÚ… 	 »ÜUkÅ~);¦—¦Şà„6­Ø$ŒÖ…¹t$wRßÌs“œlCçYBÆ@wÍËÖ‰7ÄX•›¬Ÿf=i²dìF6á~&$U§Ñ˜)ÖgÁ÷îg·›	İ¤ôBrŞÛ<‰2ÕŞŠ(Æ%	Â`HÈA ahè"î=İš„ş|(_[½ôz‡ óhïÅŞdR¨ÒG0Æù¹fl9~´:şØüJc©'ö:CrOD5 õ%4ÓüÈàèÜQc§`/'&À:³ª‰cÑÇkÀEÇÑ£`œ"hN0Ú… úH«1¯1ø ?6hQÑlÓ<?8ãèWç0ŠAwboL¡eZyßéü„&€/“,İnHİêh†
+!z_{!(p14v©V £85GAè;‡0ı}ŸË>ÌO²µÀšY/a(bX»™ÿÎ›fõ•&(´üÒÛÏ*d$î,mÌ$ÕÜ’¸ÿÅ|PŠiì<L«õ”+?¬…ıaOo*Q/Êü08eƒ…O}±š©ö=ùûW•ÄşQ¿ú…–‚Raçåóš*ÚU¡ÆŠTA}¬¢úØm¶ğ_UèÕr½³úèá1†«Ø6UºwÈ:]õOı0!	îJfÃ~õY»ã6ÛmÖ8étÚîz»³İyĞs×›¢Ìf×mmPÑŒ§<m5¸VûÇÆŸù‹í†L$~LÂüµ*ù¢Ñ}R­k¥6X«»ánt:' Y‚ÜÆRdñò—Ş­¯» vÁı¢P¯ËP)ÿ, gt¶76d8ˆ·Oà•Â§í6»=Â§ÙtÛë?ş:Îš€$’¡ívQ³ãvºëàÓYïšm·×fn·¹ÎÚ*ÔéòP¯^G>5×İv±lüÎº»Şè‰ûV×E}½á47ÜV·å@õ@WtZm÷AÛiwİfcİi=p{§İ <[åô:€SSæO½†ÛAò;–Tì]|ˆnl°uxÚèÉ' ö`Úè†È˜®w\P´[îúƒõbÑítğ±ı` Qƒ
+·7:N»í6:m§Õt8İUo8XÈó ÙfPqy‹Àğøœ{PeAª)èÖT.U”ñŠ²n»õ ”VzÀê¡×‚¶îa«c=›r£ÑEÛí×Yß Ú‹'NÀŸ;ëT´»Şv5Z··ÑıuÜêm¸NÏi>èºíA§\õ`½®Û`-|–İp	}lAóby€ízàBû5ácŸ@’¦‹¦­V²Á—n8ÈA?ë6äS«íØÅÁs»…;¶È4Pj£Ó!ç7Y»toœ·Şˆ×7°-@§nµà/Ô¬å¶ñÔƒ¼h4w bëPa Øƒ-ùÔl´á3|~í‹»:¨D‹Ú&Õn8O<ÿ:~^ĞDîn·[ƒ¶v
+yàv»Ä³íF66Öå6M9²GüM»Ñ ,6ÜæzTm·ü
+mÛy€<Ö…É´Ôf*ü£õfê·š\A÷«GØ]ëÇğÄ &‹ëöpÒÔìO|íáaüè!)ì³A”Æ…¦À,ò èÜ/É
+-d4Mµ@ÙĞ¡÷ªÌã]õÑ+şÕ¨¤šÓxhD; —òû|Pxşş$:.ôŒf“_JÀ<æ_ÍÖ«ñ–§ø‚U>i­ùvÑÓÚ_pS£ù¯a4 Ğµ ´ÃDbÃ©>öà¦æûé“éhô“ïÅk53/0Çş0ˆ&çß0m¹ÿó!;<gO¤IšíĞ&RV¡©p¢=¬såµ´â.aÿ%ûÿaâ~¢Oec½şÛîvÜş¿Şn£‰×ëwöÿ[¹¾¸G­è%'•
+(ÿ#˜Ò0'æÁÅDĞ­*0
+Wóß#èO+kSZt¯šâTƒ<EGåñÚJ£v¹Z+ä=E‡Şè€ëZ£²|÷›–”G7òpVs0	†}&µî\t0|Õ/Æfì‹Å®»œ×Éi¾É/Ï)o×èG>e	æç4Éù…ş¿_}ÅŸİrlëÙ¥ŞX¾ÍÎ)s×-ïËs^*#ÿÏä4^d_-ŠmÙõw•sUìf!®³€Ê+(s,ĞÍ+×ç$5•Ó‰KÔÖ¹˜0vº¢ÉôŠ­Â!9«+†eƒàT5¤Ğßèå ™!h’ìê½.¢WîÑëdäû“<6\Ï›“ŞÉ¤¿¶ú×ÿå¿[eğ÷¿Òßÿ—şş?ô÷ÿ£¿ÿ7ıı?éïÿEÿ[úûß¯rÕêV¿ü‡ÿßÂ¿KŠ¿ş—ÿ„işËÿHÿúûïÖtÿ+}ûßèïÿNÿHG	iœ;Ò™B„<;Á¬oŞ0Ù&	ór#ãJór^Ç@¢••›=Ìı(ŠYÀ‚’&“7ß½»¬ß‰îœ#!ÍÛÃ• j|Ëˆ/ß¥!nT“D“B‹ˆxŞ¡ˆ ¯5íe1º÷{‚SL¨¾c€ \\Y•¾0Ş5‚µó¬›ÆÁ8.ÔCµâ+Nşğ~¾à?_~ùæŞ›MZ~ß|÷î«Ëêe>á—"ı_é)UBN}l H¤ğ'Y÷ÑÚ‡°ı¦İ¯|—ÇÃ­ÏÈÒ.Ér€ë6eùšö|´!kFYÍ²<ó
+³eÄ@÷£|WxÙ_ij/ÃcË÷WZzHM,²¢‰œŒG­lÃÅTÅãŠÆ¿PŒãÿÂö€ôŠ„ÈLıŸÿ³Œ3ïƒ 5fõç)ÿ'L©Rˆ®‚ñrUÎByªNJË]Yx©–§V3{¯ê~˜;ÆUØ`Fü•8ë=DæşrsÚªìpÏš²;‰Fò’÷P·h”k¦±Ÿ$0
+õ]ÎÓPd³Zm…£óƒó¬Í¢Išˆ[hßJ¾Mğ1ÁÀ¨Xu½…IÌ"Xj¿úæ§zøÎÒ4ò«ø&«Ï¥î¦!*)Ì”ƒ‘t$ÆÀÏZ¥DE§1Å
+P­A«T)“%¼Ä?àA€ÒƒQ -ğŠUW K•õû¬úS•]\è/ÎËd>NoÊ»jMowAô~ÓxsuÎ´d¥72…‰ìó<²á§Av®ĞøCc”’ $5>ÂßËJÆM±SÆk¤¦hl+Yel­K ±çÙ"‚ú+íü+ªa¥£½?õFÁĞKj×òö n¦~­¦}ƒŠğïæ š‚F oÅ}ë‹P¾ÉIp”.|W±•]]ù®Z[¤[bu [<j¿ÚÙ{ÆGq¼ëŸ¦ÍF#§Ù?a« ×Ğ•|™×ex}r„¤ªö™Ôò?øÖU!Œñ²‰!ñNV/M_i'T„Tág±­ ¬›1®!z¬ì’XÃŒè=.O'ûH!È#ÇlWÖŒt”VÖ¤rÄ‡ªèÇ…ˆ—1¾PõKújB mõxÅghsØ£?tó#Xy-´/U©ï<Ì>rí=ßcd+²Ñ@ã´
+b_Ä_ÅÌ‚îë TëŒ„¨+ÅÂS%¹Â¥R.jkk
+ô×_×´l¼¯ì>Ùïóa‹‚Ïk…Ÿ2TQ ²‡ì¡lÕÕ/“·áªlS­×¨ñhû§4%ÀÕBìk½1j:v$W×¤úœQƒˆ7`«o6©ôÍw«ÅŞ¦ú¾•‰y•DW*í¢#€¨º”…W³w\|‰©O¡)$¦c‡U>¦D[ù¨ÄV¤rrşùƒ\uÁq©¨9ä”êPÚ<xğ˜nş¨«&”¬½s£œàğÍM§y©‹ìµ5ÎX£V3¸c:‚ÜLOşH}ùG¬`èÈ <ğâØ;Ïá Õ‹ÏÙ]õQuÌV8»¥$¤ŒĞk®}¬Pşªèc"¦}#C3½mf³_¦AL‡ótÁ%(†¡åĞšŸ„o¶OüÆúd:˜woC¥ó«qèÅ>ÃÃ±^£ š}€Yİe/Æª
+®˜õŠ35ĞÄbÚA'“>O)ôPrÈ­'eó-ÖP/¿á›`¾Ò’‘ÌÛæì7:gg>C{¥,™Npë¾Âe‡€ÂAEÏıÔ­²GÙtÅVn“e}‘ˆ\@ÄO¼AŠÂâ„IêFüĞi£">ŸxÉ‰ˆ5C…š9
+]'Nò-Gˆ8/Q"ã5%Ïq‚	,1'ZÛ°Ï1Ú˜uä|væ%DÁ#ÜÎ”£S%G$”9	ŒMU¬|£FP¥ùl¤’'²¯L²H¥Ê¸6É¤ÏB:B·aRÁ¶Ñ ³i§ÓfŞ©Œ¼eûpi·Uƒ#h)‚ñ&‰¦ú;mƒaWé˜rãòt®òµÍıJövu¹œâØv_l(0rÿR³Lå ÛQ1çeğjûå&ÅIğæéîş«çÌIóæ–2šèŠdæPÓ9ÇX+´€DcŸE8›	K„‰j³LäôYl¼ka‹ n]íçZÌ+lXñİe©!ËfÒ’!7øa„Ü8ÉÃ9HôÌÑo—çÄ1@tXûØ÷”ÎkB*t9a=W	¨ ™’V^ÿ×ƒôó¿ûçÇuöQ)è_3hb¢AãĞÖQwl\Vk†¬²7D®B;è“t@UÂAW¬­BŒ;HAÈ€r÷õÊGQ¹K,*ÛhÛ~0g›ıJPÙ4§VidÊ¤oÃÒ¹G!ôi˜ÌVÚ«´Ô?nø¹ZîõCìıÈéø÷2Ã¦Ÿ<ÓPìÔúiûÀÿÀ‹ÛçãÓ… ¼ğ=³hyåsóx¼(ŞY±wáùÚYm1*æmsÃ›œ•®ÍO/Öğj0ù`÷ÜfÃµñÁÜ¾şL@D¥\ŒY£àÂ+_ˆ£eßZÌ™”WÍÎÈò‚It‰§Ú%/µì8HO¦‡8¼IN)BÄşÈ‡fHêÃè,ÄîV?å4)x{xãa¯s >ºĞİÜã_¡ãÊÅøáW`˜ag,o³"'ãhH«ç·rÍğ*hÇó;º…ªãéøí-w C>fg©y
+“j™í½>aÄ`“í-¦ùÒ†éª˜;p©Äé_Â’4ØUQÉ)ïÉ*MÃnBPüáÑõdXAähíÅ¸„­JsxIü‘æş İı³û“û FŞè²Ğ@Öµ&~`ğIœxÌñü¤ÕíAq@…hÊ§®›J#À7·tO–vG}l‘U·I=ƒäûÁqXd‹+™e$—D	9ZGÎ`¨ì6Àm4ôàN<¢ÑĞ;OX»×mää	fÌ&í’éá_Xµş¢ŸmÍ¨¿xİß}Uß~z·K£b5‹³G$úÀãCY.;6ÄÂ-–Ë[ŞÚap³ÍüRDÒBUYEp¿	úxNÒÅ^3[¹Å
+¼¸!ëK¦ÃˆwÄ5cFc,Ş¬ÖrßhúK´124ÑTqKE¦Qã5Ô?åvÃH´Ö×¦…Œ¯\dXBŸ&&ÙØÍõÒK2!d"7¯›àEDL|‰qò‹!ªS_÷/ÏVUwX-İ²Q„å‡qˆ?$€h‹wbÎ4{Hâ¨ï¼gõ§ÁaìÅçõ?úçƒ&2õıs€1ÆA/®İ¨sı ¯o²c9Ó^bV?ÔUf«CÆlU•FâyÉQçvmEä–‘¯s·Ö‘0SˆVŠ„ÆkiÄæ]L'h¾wr0‹ú–¥ÔR5Ğ=ôOŞˆ1NFÁxà×A!=‰â­ç$ÿ|´^±+ÒšKd ˆõ=÷~·`$Å„7n:600;¨¦ã¥õMR’ÕCqü¹…%$
+PgK,¹ÍDô2['lÌ!'¿c†¬mv‡{ZQ€9Lu&^´DáñÈ*¹˜Î5ªjšFV½ëá”Õ¡„ZÒØ›0­lçŸw_©íïı"SÂÛJM'ÚÎ¢JEbŞàgı9|DÎhÉÈá4€yB¡6rÙ¾*fliw<¨aœC/‰(ÊÿoKöfÉçó~3Ï}¾ÍÈ*&Êº5ÛºÄ‰}˜v5©¿5âí›o›­ümuOêõÕZÉTGí”Ñ÷Õ–ÌxY~Œ¢Ø;¿Ç~Š¦ìÄC£Ü‰ÏFq“Ä6:Ò©&Èâ²=_˜÷¾1mR!ˆÀ¸:²»3(M£µË^IY@­`lş¶°¦*gcú^2eÇ Í‘j¿Fµ°õK`bYBæF½B	úª\Eö«|ş¼}íâ Ó âÉ}qí>7pÜ?š†şºÂ}a2¿vvvŸ¸Ú¾AU³¯Ò³k)ZV5’;0]¢ŞÏOÂ©÷<'ˆë9FY¾Ğs`ì ¨Ùc2#f±±¡‰“é` -pÕ8—‹FşğC {Ó½ı™÷’4yû³Z¨Á™ó”Ö¼›xLÅ»ëÏèDØ”¥FÖ
+ù…–PĞ˜%2:şˆoƒp0š¡wIÏ²®f>Èq„êÔ6¾0Øl—{~…qf†bá7Mc‡«ìŒ»îˆâóo‹û6Ã™\˜5HZ_õ»Å¸ wöI`«?a~?Õ_×tk²”÷Ú÷j]øm>6¬Î*	ÈVÍZ‰«ğrBÀÍtÜla¾X`~€ÑS	æ]ù.oÌBŠÍß-Ù°“ÌÊF¨˜MÉøÜJ·æär1#²½¹Œoòé´%ô-ñšNj¦¡.¢Ú‚ºÑN¯”V.^0•‚‘	mœ¸ì£nŠ}~@F0zà­À,ûM§¤Æ‚¾?¼G-„åÒâ±A(DşîìçC:à€;N.˜ˆÑ…wâ	>à¦T6p†fü™`ª	ª'S‚O¨°F8aÁ_´Q_È˜.XÇ8,« ÷’«g!-ßœnNk³]•ò²ÿã’1_]4Èm”ÙÆ‹B:šu)^¸¸–O|\"Å¬™Ì«QYRVUµ=€š\,où¯lÓdê¨iÎ©€Øeø:|"s{ñ1¡†iå»·?ƒªSì£’mƒcÎÃ	m›Öä{¼ `I…ù‡n¸‡,Ÿûï5.G>YäW~ÍñÿÜ^ogñ¿Ûk4×{í»óß·rÍòÿï+µÒ@*¾yÎQ¸Ùäñc0`×Ì8„"êIŞ	9ÓÈİ>‹8úg[öœãM«ûh-Á(€èóÿG˜Ùû±=xÀ¬À–è’`Å²xp.KŒé›ÌyçtªF$œ×"™Ş2gÓ5ZAhûYµÇ›Ú…î0CÙ}£ê£ˆbĞ÷µØê£ÿÅÊğûóÇâØÅ‘'å2Ö_k‚Æ¦©¬Óiã–Ÿ™Ì#j©ª¤6?2õ‹8's‡¦4 >å.¾¶g•Ë8˜ê½eÎĞ²S Â…Üu1äÎ¦íåL6]’óg–gEålf3ª„:;ª—™Ó`ÍVËmØÛw9"QÀ?—G5½AâıìØÉ÷ F€2ò	;óˆ'’Qª,ˆŠşV¦WÒqÏæi£$ßd­ó.ÊX¦Õ-«³°ÀÌ«³H¦×î/“`4ŠbO:ÂÑÄ&1ºíÍn»>NfJ	Dy'Ê†ıÍMÒ.ïiÙî¦ÕDëwF^1(rTIÕI3áÇ±?…q…ø/ëë»ø/·qåÛ_lº¸Ñ00sã¿4š*şc}ä5aFpÿåV®7±ÿË»Š!‡Aš°>k5:•IóÀÂH}á™o¼©ÚÖ0%«4ƒ'İ~9(~¨ádšLä†’>«Ò®\ªTŞØ3½«¼€„™i»UÙ~/”$}ñv_}nşÎ¯|ÿ×61İXsú·×mçû³İ»ëÿ·q½xY÷xĞ¥¶·T¸¹7Ù¤
+bøÌU©
+MŠàqŞòReÓZz*¨€ãª¹|Ç§Şé‡´2ƒ_¦şnÇÃ…’2¡v@ t0ğ²RÑ6“ü7z™ÚŒŠ˜iÀ,K¦)n®«ğ™8’ßÀ°Ö*ÁU*¸û÷Ã ‰«;PÈ4‰	aPÈ@`D$.¢~+¾Uä¦‹}Ü»˜µ Ò^ÃÛ†UêN@EÄx\œb•I¢ñøÍC«eï*t~3>ÎåsDár¼QW	üñË8:ÂŸÿÅÇ^üJVVñ÷zŒh|óF¯Ã ÍçFãB1Ÿ‰­ájè©+Ö1÷­.5Æxi‡SÜŠÅÓd/,MwÚn¯LÓ£H}IHÃ¼+yoğºË˜1:™„İæOŒ×Zlä§)ú5=©äÈòzßø0BzÍwŞzgo­}|Ë¢˜É÷¢t\ñ¥™@Í–Qb DØÆ¾CP*´X¤²:OÅ£€èßgx¬U®…5^h¯ôxJ6´fÒÈ ùH+å¬Æ†_´rŸ¡fòİ6=Èdî±+Ù±'zü©öÓ‹×{‚LYFAò^'Ï®;øÈÄ³ñ1ËÂ™%ã;`’\tı—™î³ÅÔ[&U¢bBÁÛÎ¢ÀµÓA:…±KÔz+TKÒŸê¸ËSG¶#Ìëa ’ù›O¶îïT@D¾¦U/á?™¢úıap¤Ş÷~{Xà}Hº‚É‰ãâ/ G!ÓÿèŸïáÈm¥93­ğÈZÀIÆ×>À
+†›|Ò{?H’©ÛĞ@Î ÷l ¾¯ö^èªoD{OñŞŒ÷Y::ö±†ş1‡¯WÄı>:Ÿ‡vİl\§ršİªa‚Y^á:`kûûÄÁøX×Ş@'s¿ıı§L©ğ‡l;w«× $‹­¢Ë²Iñ¡?ü£‹j´(ğZ´K¹H 
+‰è•K‰çº]òZŒ ¯’U‚8úpNTÀq°H‰¾N‡[d	ÂaîâÆ­Æ‚pŠ6À`è€á€ {*^©®Ó¾Ï5Í£t¡7¨<Qå2<$“Ù,ñi8>ß–V––‰_lï¿çm>‰şŸŸÿGŞ@óì?­õ\üßV£yÿ÷v®…´‚¥y½ ®rR>'½îã<Ñg¢çm¤øSTd°çªûwŸ›|w×İuwİ]¿Ûëÿè]š
+ N 

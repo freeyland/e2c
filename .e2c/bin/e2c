@@ -337,7 +337,7 @@ e2c_install() {
     tail -n+${archive} "${0}" | tar -xzp -C ~ && >"$e2c_log" 2>&1
     test=$?
     if [[ "$test" == "0" ]]; then
-        ln -sf "$e2c_global_dir"/bin/e2c /usr/local/bin/e2c
+        ln -sf "$e2c_global_dir"/bin/m2c /usr/local/bin/e2c
         if [[ ! -f "$e2c_global_dir"/ssl/config/v3_ext.conf ]]; then
             mv "$e2c_global_dir"/ssl/config/v3_ext.blank.conf "$e2c_global_dir"/ssl/config/v3_ext.conf
         else
