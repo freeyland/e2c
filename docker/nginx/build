@@ -7,9 +7,9 @@ VERSIONS=("1.8" "1.9" "1.10" "1.11" "1.12"
 
 for i in "${!VERSIONS[@]}"; do
     docker build --build-arg NGINX_VERSION="${VERSIONS[$i]}" \
-        -t "freeyland/m2c:nginx-${VERSIONS[$i]}-alpine" "${HOME}/alpine/"
-    docker tag "freeyland/m2c:nginx-${VERSIONS[$i]}-alpine" \
-        "freeyland/m2c:nginx-${VERSIONS[$i]}-alpine"
+        -t "freeyland/e2c:nginx-${VERSIONS[$i]}-alpine" "${HOME}/alpine/"
+    docker tag "freeyland/e2c:nginx-${VERSIONS[$i]}-alpine" \
+        "freeyland/e2c:nginx-${VERSIONS[$i]}-alpine"
 done
 
 rm -rf "${HOME}/.docker"
@@ -19,9 +19,9 @@ rm -rf "${HOME}/.docker"
 echo
 
 for i in "${!VERSIONS[@]}"; do
-    echo "docker push \"freeyland/m2c:nginx-${VERSIONS[$i]}-alpine\""
+    echo "docker push \"freeyland/e2c:nginx-${VERSIONS[$i]}-alpine\""
 done
 
 for i in "${!VERSIONS[@]}"; do
-    echo "docker rmi -f \"freeyland/m2c:nginx-${VERSIONS[$i]}-alpine\""
+    echo "docker rmi -f \"freeyland/e2c:nginx-${VERSIONS[$i]}-alpine\""
 done

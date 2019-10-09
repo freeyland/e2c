@@ -17,10 +17,10 @@ for i in "${!VERSIONS[@]}"; do
     fi
 
     docker build --build-arg ELASTICSEARCH_VERSION="${VERSIONS[$i]}" --build-arg ELASTICSEARCH_URL="${url}" \
-        -t "freeyland/m2c:elasticsearch-${version}-alpine" "${HOME}/alpine/"
+        -t "freeyland/e2c:elasticsearch-${version}-alpine" "${HOME}/alpine/"
 
-    docker tag "freeyland/m2c:elasticsearch-${version}-alpine" \
-        "freeyland/m2c:elasticsearch-${version}-alpine"
+    docker tag "freeyland/e2c:elasticsearch-${version}-alpine" \
+        "freeyland/e2c:elasticsearch-${version}-alpine"
 done
 
 rm -rf "${HOME}/.docker"
@@ -33,6 +33,6 @@ for i in "${!VERSIONS[@]}"; do
     version=${VERSIONS[$i]/oss-/}
     version=${version%.*}
 
-    echo "docker push \"freeyland/m2c:elasticsearch-${version}-alpine\""
-    echo "docker rmi -f \"freeyland/m2c:elasticsearch-${version}-alpine\""
+    echo "docker push \"freeyland/e2c:elasticsearch-${version}-alpine\""
+    echo "docker rmi -f \"freeyland/e2c:elasticsearch-${version}-alpine\""
 done

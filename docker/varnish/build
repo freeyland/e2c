@@ -5,11 +5,11 @@ HOME="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 VERSIONS=("4.1" "5.2")
 
 for i in "${!VERSIONS[@]}"; do
-    docker build -t "freeyland/m2c:varnish-${VERSIONS[$i]}-alpine" \
+    docker build -t "freeyland/e2c:varnish-${VERSIONS[$i]}-alpine" \
         "${HOME}/${VERSIONS[$i]}/alpine/"
 
-    docker tag "freeyland/m2c:varnish-${VERSIONS[$i]}-alpine" \
-        "freeyland/m2c:varnish-${VERSIONS[$i]}-alpine"
+    docker tag "freeyland/e2c:varnish-${VERSIONS[$i]}-alpine" \
+        "freeyland/e2c:varnish-${VERSIONS[$i]}-alpine"
 done
 
 rm -rf "${HOME}/.docker"
@@ -19,9 +19,9 @@ rm -rf "${HOME}/.docker"
 echo
 
 for i in "${!VERSIONS[@]}"; do
-    echo "docker push \"freeyland/m2c:varnish-${VERSIONS[$i]}-alpine\""
+    echo "docker push \"freeyland/e2c:varnish-${VERSIONS[$i]}-alpine\""
 done
 
 for i in "${!VERSIONS[@]}"; do
-    echo "docker rmi -f \"freeyland/m2c:varnish-${VERSIONS[$i]}-alpine\""
+    echo "docker rmi -f \"freeyland/e2c:varnish-${VERSIONS[$i]}-alpine\""
 done
