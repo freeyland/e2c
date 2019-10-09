@@ -448,7 +448,7 @@ if [[ "$0" != "/usr/local/bin/e2c" ]]; then
         message="Install Emma2click Docker Magento environment and toolset to your system?"
     else
         m2c_is_update=1
-        m2c_res="$(m2c --version 2>/dev/null | tr -dc '[:print:]' | sed 's/\[0m\[?12l\[?25h//')"
+        m2c_res="$(e2c --version 2>/dev/null | tr -dc '[:print:]' | sed 's/\[0m\[?12l\[?25h//')"
 
         if [[ "$m2c_res" == "$m2c_version" ]]; then
             message="Hooray! You have the latest version of Emma2click toolset. Reinstall?"
