@@ -37,6 +37,7 @@ RUN     apk update && \
     php7-pecl-redis \
     php7-pecl-ssh2 \
     php7-pecl-xdebug \
+    php7-gmp \
     curl \
     gzip \
     lsof \

@@ -38,6 +38,7 @@ RUN     apk update && \
     php7-pecl-mcrypt \
     php7-pecl-redis \
     php7-pecl-ssh2 \
+    php7-gmp \
     composer \
     curl \
     bash \

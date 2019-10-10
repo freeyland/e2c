@@ -18,7 +18,7 @@ RUN     apk add --no-cache busybox-suid \
     docker-php-ext-configure gd --with-freetype-dir=/usr/include/ --with-jpeg-dir=/usr/include/ && \
     docker-php-ext-configure zip --with-libzip && \
     docker-php-ext-install \
-    bcmath gd intl mbstring opcache readline gettext sodium \
+    bcmath gd intl mbstring opcache readline gettext sodium gmp \
     calendar pdo_mysql mysqli soap xsl zip && \
     apk add --no-cache --virtual .build-deps ${PHPIZE_DEPS} && \
     yes '' | pecl install --onlyreqdeps igbinary mcrypt-1.0.2\
