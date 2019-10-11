@@ -7,6 +7,7 @@ VERSIONS=("2.0.2" "2.1.2" "2.2.2" "2.3.5" "2.4.6"
     "6.0.1" "6.1.4" "6.2.4" "oss-6.3.2" "oss-6.4.3" "oss-6.5.4" "oss-6.6.2" "oss-6.7.2" "oss-6.8.3")
 
 for i in "${!VERSIONS[@]}"; do
+    echo "---------------------------------------------------------------   Building for ${VERSIONS[$i]}"
     version=${VERSIONS[$i]/oss-/}
     version=${version%.*}
 
