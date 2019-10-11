@@ -607,11 +607,11 @@ e2c_global_update() {
     e2c_info_bold "\n[Update]\n\n"
     e2c_msg "Checking for update....................................................  "
     e2c_loading
-    remote_build="$(curl -sL https://raw.githubusercontent.com/emma2click/e2c/master/.m2c/build)"
-
+    remote_build="$(curl -sL https://raw.githubusercontent.com/freeyland/e2c/master/.m2c/build)"
+    
     if [[ "$remote_build" -gt "$build" ]]
     then
-        curl -sL -o e2c.run raw.githubusercontent.com/emma2click/e2c/master/e2c && \
+        curl -sL -o e2c.run raw.githubusercontent.com/freeyland/e2c/master/e2c && \
             e2c_result 0 && \
             chmod 755 e2c.run && \
             ./e2c.run
