@@ -1,8 +1,8 @@
-FROM    alpine:3.10
+FROM    alpine:3.8
 
 LABEL   maintainer="Mage2click, Dmitry Shkoliar @shkoliar"
 
-ARG     PHP_VERSION=${PHP_VERSION:-"7.3.10-r0"}
+ARG     PHP_VERSION=${PHP_VERSION:-"7.2.22-r0"}
 
 COPY    common/conf-xdebug/php.ini /etc/php7/conf.d/
 COPY    common/conf-xdebug/php-fpm.conf /etc/php7/
@@ -13,11 +13,13 @@ RUN     apk update && \
     apk add --no-cache \
     php7=${PHP_VERSION} \
     php7-bcmath=${PHP_VERSION} \
+    php7-calendar=${PHP_VERSION} \
     php7-ctype=${PHP_VERSION} \
     php7-curl=${PHP_VERSION} \
     php7-dom=${PHP_VERSION} \
     php7-fpm=${PHP_VERSION} \
     php7-gd=${PHP_VERSION} \
+    php7-gettext=${PHP_VERSION} \
     php7-iconv=${PHP_VERSION} \
     php7-intl=${PHP_VERSION} \
     php7-json=${PHP_VERSION} \
@@ -28,15 +30,18 @@ RUN     apk update && \
     php7-pdo_mysql=${PHP_VERSION} \
     php7-simplexml=${PHP_VERSION} \
     php7-soap=${PHP_VERSION} \
+    php7-sockets=${PHP_VERSION} \
     php7-sodium=${PHP_VERSION} \
+    php7-tokenizer=${PHP_VERSION} \
+    php7-xml=${PHP_VERSION} \
+    php7-xmlwriter=${PHP_VERSION} \
     php7-xsl=${PHP_VERSION} \
     php7-zip=${PHP_VERSION} \
-    php7-pecl-amqp \
-    php7-pecl-igbinary \
-    php7-pecl-mcrypt \
-    php7-pecl-redis \
-    php7-pecl-ssh2 \
-    php7-pecl-xdebug \
+    php7-amqp \
+    php7-mcrypt \
+    php7-redis \
+    php7-ssh2 \
+    php7-xdebug \
     php7-gmp \
     curl \
     gzip \
