@@ -322,7 +322,7 @@ e2c_requirements() {
     fi
 
     if [[ -z "$(docker ps \
-        --filter "label=com.docker.compose.project=m2c" \
+        --filter "label=com.docker.compose.project=e2c" \
         --filter "label=com.docker.compose.service=dnsmasq" \
         -q)" ]] && lsof -PiUDP:53 -tn >/dev/null 2>&1; then
         if [[ -z ${ports} ]]; then
