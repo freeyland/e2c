@@ -1,6 +1,6 @@
 FROM    alpine:3.10
 
-LABEL   maintainer="Emma2Click, Frederick Eyland "
+LABEL   maintainer="Mage2click, Dmitry Shkoliar @shkoliar"
 
 ARG     PHP_VERSION=${PHP_VERSION:-"7.3.10-r0"}
 
@@ -44,7 +44,6 @@ RUN     apk update && \
     php7-pecl-mcrypt \
     php7-pecl-redis \
     php7-pecl-ssh2 \
-    php7-gmp \
     composer \
     curl \
     bash \

@@ -1,8 +1,8 @@
-FROM    alpine:3.8
+FROM    alpine:3.10
 
-LABEL   maintainer="Emma2Click, Frederick Eyland "
+LABEL   maintainer="Mage2click, Dmitry Shkoliar @shkoliar"
 
-ARG     PHP_VERSION=${PHP_VERSION:-"7.2.22-r0"}
+ARG     PHP_VERSION=${PHP_VERSION:-"7.3.10-r0"}
 
 COPY    common/conf-xdebug/php.ini /etc/php7/conf.d/
 COPY    common/conf-xdebug/php-fpm.conf /etc/php7/
@@ -37,12 +37,12 @@ RUN     apk update && \
     php7-xmlwriter=${PHP_VERSION} \
     php7-xsl=${PHP_VERSION} \
     php7-zip=${PHP_VERSION} \
-    php7-amqp \
-    php7-mcrypt \
-    php7-redis \
-    php7-ssh2 \
-    php7-xdebug \
-    php7-gmp \
+    php7-pecl-amqp \
+    php7-pecl-igbinary \
+    php7-pecl-mcrypt \
+    php7-pecl-redis \
+    php7-pecl-ssh2 \
+    php7-pecl-xdebug \
     curl \
     gzip \
     lsof \
