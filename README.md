@@ -41,10 +41,10 @@ curl -sL https://raw.githubusercontent.com/freeyland/e2c/master/get | bash
 
 After toolset is installed, you will have the next tools available locally:
 
-- Traefik - <a href="https://traefik.m2c.test" target="_blank">https://traefik.m2c.test</a>
-- Portainer - <a href="https://portainer.m2c.test" target="_blank">https://portainer.m2c.test</a>
-- Mailhog - <a href="https://mailhog.m2c.test" target="_blank">https://mailhog.m2c.test</a>
-- Dnsmasq - <a href="https://dnsmasq.m2c.test" target="_blank">https://dnsmasq.m2c.test</a>
+- Traefik - <a href="https://traefik.e2c.test" target="_blank">https://traefik.e2c.test</a>
+- Portainer - <a href="https://portainer.e2c.test" target="_blank">https://portainer.e2c.test</a>
+- Mailhog - <a href="https://mailhog.e2c.test" target="_blank">https://mailhog.e2c.test</a>
+- Dnsmasq - <a href="https://dnsmasq.e2c.test" target="_blank">https://dnsmasq.e2c.test</a>
 
 Toolset local homepage with links to all tools listed above - <a href="https://e2c.test" target="_blank">https://e2c.test</a>
 

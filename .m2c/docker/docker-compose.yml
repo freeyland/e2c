@@ -33,7 +33,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     labels:
       - traefik.enable=true
-      - traefik.frontend.rule=Host:traefik.m2c.test
+      - traefik.frontend.rule=Host:traefik.e2c.test
       - traefik.port=8080
     restart: always
 
@@ -45,7 +45,7 @@ services:
       - portainer:/data
     labels:
       - traefik.enable=true
-      - traefik.frontend.rule=Host:portainer.m2c.test
+      - traefik.frontend.rule=Host:portainer.e2c.test
       - traefik.port=9000
     restart: always
 
@@ -55,7 +55,7 @@ services:
     image: mailhog/mailhog:v1.0.0
     labels:
       - traefik.enable=true
-      - traefik.frontend.rule=Host:mailhog.m2c.test
+      - traefik.frontend.rule=Host:mailhog.e2c.test
       - traefik.port=8025
     restart: always
 
@@ -68,7 +68,7 @@ services:
       - ~/.m2c/dnsmasq/dnsmasq.conf:/etc/dnsmasq.conf
     labels:
       - traefik.enable=true
-      - traefik.frontend.rule=Host:dnsmasq.m2c.test
+      - traefik.frontend.rule=Host:dnsmasq.e2c.test
       - traefik.port=8080
     restart: always
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-declare -r e2c_version="0.2.32"
+declare -r e2c_version="0.2.33"
 declare -r e2c_os="$(uname -s | awk '{print tolower($0)}')"
 declare -r e2c_global_dir="$(echo ~/.m2c)"
 declare e2c_loading_pid=
@@ -334,7 +334,7 @@ e2c_requirements() {
 
     if [[ -n ${ports} ]]; then
         test=1
-        echo "$ports already used by some other service.\n" >"$m2c_log"
+        echo "$ports already used by some other service.\n" >"$e2c_log"
     fi
 
     e2c_result ${test} 1
