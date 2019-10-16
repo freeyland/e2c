@@ -12,7 +12,7 @@ services:
       - traefik.enable=true
       - traefik.frontend.rule=Host:e2c.test
       - traefik.port=8080
-    restart: always
+    restart: ${E2C_GLOBAL_SERVICES_AUTO_START}
 
   traefik:
     container_name: e2c.test__traefik
@@ -35,7 +35,7 @@ services:
       - traefik.enable=true
       - traefik.frontend.rule=Host:traefik.e2c.test
       - traefik.port=8080
-    restart: always
+    restart: ${E2C_GLOBAL_SERVICES_AUTO_START}
 
   portainer:
     container_name: e2c.test__portainer
@@ -47,7 +47,7 @@ services:
       - traefik.enable=true
       - traefik.frontend.rule=Host:portainer.e2c.test
       - traefik.port=9000
-    restart: always
+    restart: ${E2C_GLOBAL_SERVICES_AUTO_START}
 
   mailhog:
     container_name: e2c.test__mailhog
@@ -57,7 +57,7 @@ services:
       - traefik.enable=true
       - traefik.frontend.rule=Host:mailhog.e2c.test
       - traefik.port=8025
-    restart: always
+    restart: ${E2C_GLOBAL_SERVICES_AUTO_START}
 
   dnsmasq:
     container_name: e2c.test__dnsmasq
@@ -70,7 +70,7 @@ services:
       - traefik.enable=true
       - traefik.frontend.rule=Host:dnsmasq.e2c.test
       - traefik.port=8080
-    restart: always
+    restart: ${E2C_GLOBAL_SERVICES_AUTO_START}
 
 volumes:
   portainer:

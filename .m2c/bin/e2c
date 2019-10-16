@@ -1,6 +1,6 @@
 #!/bin/bash
 
-declare -r e2c_version="0.2.34"
+declare -r e2c_version="0.3.1"
 declare -r e2c_os="$(uname -s | awk '{print tolower($0)}')"
 declare -r e2c_global_dir="$(echo ~/.m2c)"
 declare e2c_loading_pid=
@@ -492,8 +492,11 @@ if [[ "$0" != "/usr/local/bin/e2c" ]]; then
     rm -rf "$e2c_global_dir"/{bin,completions,dnsmasq,docker,functions,local,traefik,www,build} >/dev/null 2>&1
     e2c_install
     . "$e2c_global_dir"/functions/e2c
+    e2c_global_load_env
     e2c_sign "e2c.test"
+    e2c_res="$(pwd)"
     e2c_global up
+    cd "$e2c_res"
 
     e2c_info_bold "\n[Installation finished]\n\n"
     e2c_msg "Emma2click toolset is successfully installed! \n\nRun \`e2c --help\` command for usage information. \nVisit local https://e2c.test to check useful links to included services.\n\n"
@@ -509,7 +512,7 @@ else
     . "$e2c_global_dir"/functions/e2c
     declare -r e2c_project_dir="$(e2c_get_project_dir)"
     e2c_log="$e2c_project_dir"/.m2c/log
-    e2c_load_project_env
+    e2c_load_env
 
     case "$1" in
     global)

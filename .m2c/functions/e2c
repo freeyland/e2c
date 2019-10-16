@@ -24,6 +24,11 @@ e2c_get_project_dir() {
     [[ "$current_dir" != ~ ]] && [[ "$current_dir" != "/" ]] && echo "$current_dir" || echo "$(pwd)"
 }
 
+e2c_load_env() {
+    e2c_global_load_env
+    e2c_load_project_env
+}
+
 e2c_save_project_env() {
     local config_env="$e2c_project_dir/.m2c/docker/.env"
 
@@ -371,6 +376,10 @@ e2c_global() {
     e2c_in_array "--help" $@ && e2c_global_help
 
     case "$1" in
+        autostart)
+            shift
+            e2c_global_autostart "$@"
+        ;;
         info|status)
             e2c_global_info
         ;;
@@ -433,6 +442,16 @@ e2c_global_error() {
     exit 1
 }
 
+e2c_global_load_env() {
+    local config_env="$e2c_global_dir/docker/.env"
+    [[ -f "$config_env" ]] && . "$config_env"
+}
+e2c_global_save_env() {
+    local config_env="$e2c_global_dir/docker/.env"
+    [[ -f "$config_env" ]] || mkdir -p "$(dirname "$config_env")" && touch "$config_env"
+    set | grep '^E2C_GLOBAL_' > "$config_env"
+}
+
 e2c_global_print_service() {
     case "$1" in
         portainer)
@@ -458,12 +477,14 @@ e2c_global_up() {
 
     e2c_info_bold "\n[Creating docker container$( (("${#service[@]}" > 1)) && echo "s" )]\n\n"
 
+    cd "$e2c_global_dir/docker/"
+
     for i in "${!service[@]}"
     do
         e2c_global_print_service ${service[$i]}
         e2c_loading
         docker-compose --project-name e2c \
-            --file "$e2c_global_dir/docker/docker-compose.yml" up \
+            --file docker-compose.yml up \
             -d --force-recreate ${service[$i]} >"$e2c_log" 2>&1
         e2c_result $?
     done
@@ -565,6 +586,30 @@ e2c_global_projects() {
     e2c_msg "=========================================================================\n"
     exit 0
 }
+
+e2c_global_autostart() {
+    case "$@" in
+        1|enable|enabled|on|true)
+            E2C_GLOBAL_SERVICES_AUTO_START="always"
+            e2c_global_save_env
+            e2c_global up
+            e2c_msg "\nToolset related global docker services will be started automatically with docker startup.\n"
+        ;;
+        0|disable|disabled|off|false)
+            E2C_GLOBAL_SERVICES_AUTO_START="no"
+            e2c_global_save_env
+            e2c_global up
+            e2c_msg "\nToolset related global docker services won't be started automatically with docker startup.\n"
+        ;;
+        status)
+            e2c_msg "Toolset related global docker services autostart is $([[ "$E2C_GLOBAL_SERVICES_AUTO_START" == "always" ]] && echo "ON" || echo "OFF").\n"
+        ;;
+        *)
+            e2c_global_error "$@"
+        ;;
+    esac
+}
+
 
 e2c_global_info() {
     local project="e2c"
@@ -679,9 +724,13 @@ e2c_global_help() {
   Control Emma2click toolset installation and its docker services.
 
 \033[1;33mUsage:\033[0m
-  e2c global <command> [service...] [--help]
+  e2c global <command> [--help]
+
+  e2c global <restart|start|stop|up> [service...]
+  e2c global autostart [on|off]
 
 \033[1;33mCommands:\033[0m
+  autostart     Configure autostart of toolset docker services.
   projects      Show existing Emma2click-backed projects.
   restart       Restart Emma2click toolset docker services.
   start         Start stopped Emma2click toolset docker services.
