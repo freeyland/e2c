@@ -1,6 +1,6 @@
 #!/bin/bash
 
-declare -r e2c_version="0.3.2"
+declare -r e2c_version="0.3.1"
 declare -r e2c_os="$(uname -s | awk '{print tolower($0)}')"
 declare -r e2c_global_dir="$(echo ~/.m2c)"
 declare e2c_loading_pid=
@@ -28,12 +28,12 @@ e2c_logo() {
                   ///////////////////////////////////////
     '
 
-    echo -e "\034[1;33m$logo
+    echo -e "\033[1;34m$logo
                                 Emma2click
                               Docker Magento
                           environment and toolset
                                   v$e2c_version
-\034[0m"
+\033[0m"
 }
 
 e2c_loading() {
