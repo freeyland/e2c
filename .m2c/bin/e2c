@@ -28,7 +28,7 @@ e2c_logo() {
                   ///////////////////////////////////////
     '
 
-    echo -e "\033[1;34m$logo
+    echo -e "\033[0;34m$logo
                                 Emma2click
                               Docker Magento
                           environment and toolset
