@@ -37,7 +37,7 @@ curl -sL https://raw.githubusercontent.com/freeyland/e2c/master/get | bash
 
 ## What is included
 
-### Global system-wide services 
+### Global system-wide services
 
 After toolset is installed, you will have the next tools available locally:
 
