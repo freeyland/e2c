@@ -46,15 +46,19 @@ After toolset is installed, you will have the next tools available locally:
 - Mailhog - <a href="https://mailhog.e2c.test" target="_blank">https://mailhog.e2c.test</a>
 - Dnsmasq - <a href="https://dnsmasq.e2c.test" target="_blank">https://dnsmasq.e2c.test</a>
 
-Toolset local homepage with links to all tools listed above - <a href="https://e2c.test" target="_blank">https://e2c.test</a>
+Toolset local homepage with links to all tools listed above is available at: <a href="https://e2c.test" target="_blank">https://e2c.test</a>
 
-**All docker images with services listed above must be active.** These services are configured to start automatically and should not be stopped. Without active Traefik and Dnsmasq, e2c backed projects can't work properly.  
+<p align="center"><img src="assets/images/e2c.png" width="600" align="center" alt="Emma2click Docker Magento environment and toolset" /></p>
+
+**All docker images with services listed above must be active.** These services are configured to start automatically and should not be stopped. Without active Traefik and Dnsmasq, e2c backed projects can't work properly. This option can be desable with: 
+
+> e2c global autostart off
 
 ### Per-project services
 
 Most of services are available with version on your choice.
 
-All docker Magento projects initialized with: 
+All docker Magento projects initialized with:
 
 - Nginx
 - PHP-FPM
@@ -67,7 +71,9 @@ And optionally available:
 - Varnish
 - Elasticsearch
 - phpMyadmin
-- RabbitMQ 
+- RabbitMQ
+
+The optionally available containers can be added on the fly with ```e2c add ...```
 
 ## Usage
 
@@ -83,7 +89,11 @@ To initialize project, open the desired directory with terminal and run
 e2c init
 ```
 
-This command will launch project initialization in interactive mode. Simply follow the steps to configure the desired Docker Magento development environment.
+This command will launch project initialization in interactive mode. 
+***This is for both existing and new projects!***
+Simply follow the steps to configure the desired Docker Magento development environment. You will be guided through a wizard.
+
+<p align="center"><img src="assets/images/wizard.png" width="600" align="center" alt="Emma2click wizard" /></p>
 
 ### Commandline project initialization mode
 
@@ -110,6 +120,15 @@ https://markshust.com/2018/01/30/performance-tuning-docker-mac/
 
 <p align="center"><img src="assets/images/docker-settings.png" width="600" align="center" alt="Docker settings" /></p>
 
+## Remarks
+
+### Uninstall
+
+Please note that when you uninstall, the containers will be removed. So when having issues with e2c it is better to reinstall than to do an uninstall. Reinstall can be triggered by running the curl command again above.
+
+### Change of domain name
+
+When changing the domainname of your project, you will need to recreate your containers ans ALSO remove env.php.
 
 ## License
 
