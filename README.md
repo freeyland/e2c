@@ -142,6 +142,8 @@ Please note that when you uninstall, the containers will be removed. So when hav
 
 When changing the domainname of your project, you will need to recreate your containers ans ALSO remove env.php.
 
+## XDEBUG
+[XDEBUG info](XDEBUG.md)
 ## License
 
 [MIT](LICENSE)
