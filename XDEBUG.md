@@ -22,8 +22,7 @@ Select **PHP language level** to match PHP version used in your Magento project.
 For **CLI Interpreter**, click on three dots to add new one. A new **CLI Interpreters** dialog box will appear, press on plus (+) sign and choose `From Docker, Vagrant, VM, Remote...`
 ![Configuration CLI interpreters](assets/images/xdebug-configuration-cli-interpreters.png)
 
-In the appeared dialog box, select `Docker` and for **Image name** choose mage2click xdebug Docker image with corresponding PHP version to your Magento project, for example `mage2click/m2c:php-fpm-7.2-xdebug-alpine`. Press `OK`.
-![Configuration remote interpreters](assets/images/xdebug-configuration-remote-php-interpreter.png)
+In the appeared dialog box, select `Docker` and for **Image name** choose emma2click xdebug Docker image with corresponding PHP version to your Magento project, for example `emma2click/e2c:php-fpm-7.2-xdebug-alpine`. Press `OK`.
 
 Also, press `OK` on **CLI Interpreters** dialogue box.
 ![Configuration CLI interpreters](assets/images/xdebug-configuration-cli-interpreters.png)
