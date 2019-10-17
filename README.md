@@ -50,6 +50,17 @@ Toolset local homepage with links to all tools listed above is available at: <a 
 
 <p align="center"><img src="assets/images/e2c.png" width="600" align="center" alt="Emma2click Docker Magento environment and toolset" /></p>
 
+- **Traefik:** An open-source reverse proxy and load balancer for HTTP and TCP-based applications that is easy, dynamic, automatic, fast, full-featured, production proven, provides metrics, and integrates with every major cluster technology... 
+
+- **Portainer:** it’s a powerful, open-source management toolset that allows you to easily build, manage and maintain Docker environments.
+
+- **Mailhog:** MailHog is an email testing tool for developers:
+  - Configure your application to use MailHog for SMTP delivery
+  - View messages in the web UI, or retrieve them with the JSON API
+  - Optionally release messages to real SMTP servers for delivery
+
+- **DNSMasq:** is a lightweight, easy to configure, DNS forwarder and DHCP server. It is designed to provide DNS and optionally, DHCP, to a small network. It can serve the names of local machines which are not in the global DNS. The DHCP server integrates with the DNS server and allows machines with DHCP-allocated addresses to appear in the DNS with names configured either in each host or in a central configuration file. Dnsmasq supports static and dynamic DHCP leases and BOOTP/TFTP for network booting of diskless machines.
+
 **All docker images with services listed above must be active.** These services are configured to start automatically and should not be stopped. Without active Traefik and Dnsmasq, e2c backed projects can't work properly. This option can be desable with: 
 
 > e2c global autostart off
