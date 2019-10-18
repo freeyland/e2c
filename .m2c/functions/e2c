@@ -1326,6 +1326,8 @@ e2c_init() {
     e2c_local up
     e2c_push --all
 
+    cd "$e2c_project_dir"
+
     if [[ -f "$e2c_magento_db_import" ]]
     then
         e2c_db_import "$e2c_magento_db_import"

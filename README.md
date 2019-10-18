@@ -142,6 +142,10 @@ Please note that when you uninstall, the containers will be removed. So when hav
 
 When changing the domainname of your project, you will need to recreate your containers ans ALSO remove env.php.
 
+### When doing e2c down
+
+The containers will be deleted and the persistant volumes will be removed. Note they are not deleted from your system! You can delete them via portainer.
+
 ## XDEBUG
 [XDEBUG info](XDEBUG.md)
 ## License
