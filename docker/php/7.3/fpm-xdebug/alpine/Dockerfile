@@ -37,6 +37,7 @@ RUN     apk update && \
     php7-xmlwriter=${PHP_VERSION} \
     php7-xsl=${PHP_VERSION} \
     php7-zip=${PHP_VERSION} \
+    php7-gmp=${PHP_VERSION} \
     php7-pecl-amqp \
     php7-pecl-igbinary \
     php7-pecl-mcrypt \
