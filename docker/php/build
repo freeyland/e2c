@@ -22,9 +22,10 @@ done
 
 rm -rf "${HOME}/.docker"
 
+echo "---------------------------------------------------------------------------------------"
+echo "---------------------------------------------------------------------------------------"
 # Due to docker error "denied: requested access to the resource is denied",
 # echoing commands to run them manually instead of running directly
-
 for i in "${!VERSIONS[@]}"; do
     echo "docker push \"freeyland/e2c:php-fpm-${VERSIONS[$i]}-alpine\""
     echo "docker rmi -f \"freeyland/e2c:php-fpm-${VERSIONS[$i]}-alpine\""
