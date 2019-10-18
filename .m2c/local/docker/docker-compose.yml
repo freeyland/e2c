@@ -13,7 +13,7 @@ services:
       - e2c.project.path=${E2C_PROJECT_PATH}
     volumes:
       - $HOME/.composer/auth.json:/auth.json
-      - $HOME/.ssh:/var/www/
+      - $HOME/.ssh:/var/www/.ssh
     networks:
       - default
       - e2c
