@@ -828,7 +828,7 @@ e2c_help() {
   e2c <command> [arguments...] [--help]
 
 \033[1;33mCommands:\033[0m
-  add           Add optional service to project.
+  add           Add optional service to project. (elasticsearch/ rabbitmq/ phpmyadmin/ varnish)
   bash          Open the bash prompt on project php docker service.
   cli           Run any cli command without going into the bash prompt.
   composer      Run composer specific commands.
@@ -867,7 +867,7 @@ e.g.: e2c global --help
   e2c <command> [args...] [--help]
 
 \033[1;33mCommands:\033[0m
-  add           Add optional service to project.
+  add           Add optional service to project. (elasticsearch/ rabbitmq/ phpmyadmin/ varnish)
   bash          Open the bash prompt on project php docker service.
   cli           Run any cli command without going into the bash prompt.
   composer      Run composer specific commands.
