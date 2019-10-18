@@ -46,6 +46,7 @@ RUN     apk update && \
     curl \
     bash \
     gzip \
+    openssh \  
     lsof \
     git \
     npm \
