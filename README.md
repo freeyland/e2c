@@ -146,6 +146,10 @@ When changing the domainname of your project, you will need to recreate your con
 
 The containers will be deleted and the persistant volumes will be removed. Note they are not deleted from your system! You can delete them via portainer.
 
+### When importing a db
+
+Use the absolute path to your file. There is also a bug on Mac that you cannot hib the back button.
+
 ## XDEBUG
 [XDEBUG info](XDEBUG.md)
 ## License
