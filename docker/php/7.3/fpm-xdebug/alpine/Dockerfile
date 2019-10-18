@@ -48,6 +48,7 @@ RUN     apk update && \
     gzip \
     lsof \
     git \
+    openssh-client \
     supervisor && \
     \
     \
