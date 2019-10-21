@@ -1281,7 +1281,7 @@ e2c_init() {
 
                 e2c_msg "\nSpecify full path to plain sql or gzipped database dump file to import.\n\n"
 
-                e2c_ask_text "Set the database dump file path:" \
+                e2c_ask_text "Set the database dump file path (absolute path!):" \
                              "" \
                              "Cannot locate database dump file at specified path: %s!\n" \
                              "" \
@@ -1326,6 +1326,7 @@ e2c_init() {
     e2c_local up
     e2c_push --all
 
+    cd "$e2c_project_dir"
 
     if [[ -f "$e2c_magento_db_import" ]]
     then
