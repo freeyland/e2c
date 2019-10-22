@@ -160,7 +160,8 @@ e2c_ask_text() {
         error_info=$4 \
         validate=$5 \
         validate_value=() \
-        res valid error_count res_count valid=1
+        res res_count \
+        error_count valid=1
 
     shift
     shift
@@ -198,7 +199,7 @@ e2c_ask_text() {
             error_count="$(echo -en "$error_count" | awk 'END { print NR }')"
         fi
 
-        res="$(read -er 2>&1 | tee >(cat - >&5) | tr -d '\r')"
+        read -r res
         res_count=$(echo "$res" | awk 'END { print NR }')
 
         [[ ${error_count} -eq 0 ]] && ((res_count++))
