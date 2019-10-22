@@ -477,15 +477,16 @@ e2c_global_up() {
 
     e2c_info_bold "\n[Creating docker container$( (("${#service[@]}" > 1)) && echo "s" )]\n\n"
 
-    cd "$e2c_global_dir/docker/"
-
     for i in "${!service[@]}"
     do
         e2c_global_print_service ${service[$i]}
         e2c_loading
-        docker-compose --project-name e2c \
-            --file docker-compose.yml up \
-            -d --force-recreate ${service[$i]} >"$e2c_log" 2>&1
+        (
+            cd "$e2c_global_dir/docker/" && \
+            docker-compose --project-name e2c \
+                --file docker-compose.yml up \
+                --detach --force-recreate --no-color --no-deps ${service[$i]}
+        ) >"$e2c_log" 2>&1
         e2c_result $?
     done
 }
@@ -1577,7 +1578,7 @@ e2c_init_help() {
   --domain <magento.test>           Set domain name with .test tld to use for
                                     the project.
   --nginx-version <1.17>            Set Nginx version.
-  --php-version <7.2>               Set PHP version.
+  --php-version <7.3>               Set PHP version.
   --mariadb-version <10.3>          Set MariaDB version.
   --redis-version <5.0>             Set Redis version.
   --varnish-version <5.2>           Set Varnish version, applicable only when
@@ -1586,7 +1587,7 @@ e2c_init_help() {
                                     when --elasticsearch option is present.
   --rabbitmq-version <3.7>          Set RabbitMQ version. Applicable only when
                                     --rabbitmq option is present.
-  --magento-version <2.3.2>         Set Magento version to install. Applicable
+  --magento-version <2.3.3>         Set Magento version to install. Applicable
                                     only for clean installs.
   --magento-admin-url <admin>       Set Magento admin url path. Applicable only
                                     for clean installs.
@@ -1639,10 +1640,7 @@ e2c_local() {
         *)
             local e2c_local_command=
             local e2c_local_service=()
-            local e2c_local_services=("db" "php" "xdebug" "nginx" "redis" "varnish" \
-                                      "elasticsearch" "phpmyadmin" "rabbitmq")
-
-            local e2c_local_existing_services=($(e2c_local_list_services))
+            local e2c_local_services=($(e2c_local_list_services))
 
             while (("$#"))
             do
@@ -1662,7 +1660,7 @@ e2c_local() {
                         shift
                     ;;
                     *)
-                        if e2c_in_array "$1" ${e2c_local_existing_services[@]}
+                        if e2c_in_array "$1" ${e2c_local_services[@]}
                         then
                             e2c_local_service+=("$1")
                             shift
@@ -1675,19 +1673,9 @@ e2c_local() {
 
             if [[ -n ${e2c_local_command} ]]
             then
-                if ! (("${#e2c_local_service[@]}"))
+               if ! (("${#e2c_local_service[@]}"))
                 then
-                    for i in "${!e2c_local_existing_services[@]}"
-                    do
-                        if [[ "$e2c_local_command" == "remove" ]] || ! [[ \
-                                "${e2c_local_services[$i]}" == "varnish" && -z ${E2C_CFG_VARNISH} || \
-                                "${e2c_local_services[$i]}" == "elasticsearch" && -z ${E2C_CFG_ELASTICSEARCH} || \
-                                "${e2c_local_services[$i]}" == "phpmyadmin" && -z ${E2C_CFG_PHPMYADMIN} || \
-                                "${e2c_local_services[$i]}" == "rabbitmq" && -z ${E2C_CFG_RABBITMQ} ]]
-                        then
-                            e2c_local_service+=("${e2c_local_existing_services[$i]}")
-                        fi
-                    done
+                    e2c_local_service=("${e2c_local_services[@]}")
                 fi
 
                 case ${e2c_local_command} in
@@ -2001,35 +1989,35 @@ e2c_local_project_up() {
 
     if [[ -n ${service} ]]
     then
-        cd "$e2c_project_dir/.m2c/docker/"
-
-        docker-compose --project-name "${E2C_CFG_DOMAIN_NAME/.test/}" \
-            --file docker-compose.yml \
-            --file docker-compose.$([[ -n ${E2C_CFG_VARNISH} ]] && echo "varnish" || echo "nginx").yml \
-            ${E2C_CFG_PHPMYADMIN:+--file docker-compose.phpmyadmin.yml} \
-            ${E2C_CFG_ELASTICSEARCH:+--file docker-compose.elasticsearch.yml} \
-            ${E2C_CFG_RABBITMQ:+--file docker-compose.rabbitmq.yml} \
-            --file docker-compose.${e2c_os}.yml \
-            up --detach --force-recreate --no-color "$service" >"$e2c_log" 2>&1
-
+         (
+            cd "$e2c_project_dir/.e2c/docker/" && \
+            docker-compose --project-name "${E2C_CFG_DOMAIN_NAME/.test/}" \
+                --file docker-compose.yml \
+                --file docker-compose.$([[ -n ${E2C_CFG_VARNISH} ]] && echo "varnish" || echo "nginx").yml \
+                ${E2C_CFG_PHPMYADMIN:+--file docker-compose.phpmyadmin.yml} \
+                ${E2C_CFG_ELASTICSEARCH:+--file docker-compose.elasticsearch.yml} \
+                ${E2C_CFG_RABBITMQ:+--file docker-compose.rabbitmq.yml} \
+                --file docker-compose.${e2c_os}.yml \
+                up --detach --force-recreate --no-color --no-deps "$service"
+        ) >"$e2c_log" 2>&1
         return $?
     fi
 
     return 1
 }
 
-e2c_local_list_services() {
-    cd "$e2c_project_dir/.m2c/docker/"
-
-    docker-compose --project-name "${E2C_CFG_DOMAIN_NAME/.test/}" \
-        --file docker-compose.yml \
-        --file docker-compose.$([[ -n ${E2C_CFG_VARNISH} ]] && echo "varnish" || echo "nginx").yml \
-        ${E2C_CFG_PHPMYADMIN:+--file docker-compose.phpmyadmin.yml} \
-        ${E2C_CFG_ELASTICSEARCH:+--file docker-compose.elasticsearch.yml} \
-        ${E2C_CFG_RABBITMQ:+--file docker-compose.rabbitmq.yml} \
-        --file docker-compose.${e2c_os}.yml \
-        ps --services --all
-
+m2c_local_list_services() {
+    (
+        cd "$e2c_project_dir/.m2c/docker/" && \
+        docker-compose --project-name "${M2C_CFG_DOMAIN_NAME/.test/}" \
+            --file docker-compose.yml \
+            --file docker-compose.$([[ -n ${M2C_CFG_VARNISH} ]] && echo "varnish" || echo "nginx").yml \
+            ${M2C_CFG_PHPMYADMIN:+--file docker-compose.phpmyadmin.yml} \
+            ${M2C_CFG_ELASTICSEARCH:+--file docker-compose.elasticsearch.yml} \
+            ${M2C_CFG_RABBITMQ:+--file docker-compose.rabbitmq.yml} \
+            --file docker-compose.${e2c_os}.yml \
+            ps --services --all
+    )
     return $?
 }
 
