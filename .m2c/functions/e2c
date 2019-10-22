@@ -47,13 +47,16 @@ e2c_load_project_env() {
         set +a
     fi
 
+    export DOCKER_CLIENT_TIMEOUT=600
+    export COMPOSE_HTTP_TIMEOUT=600
+
     export E2C_PROJECT_PATH="$e2c_project_dir"
 
     export E2C_TRAEFIK_IP="$(docker ps \
         --filter "label=com.docker.compose.project=e2c" \
         --filter "label=com.docker.compose.service=traefik" \
         -qa | xargs docker inspect \
-        --format="{{index .NetworkSettings.Networks.e2c.IPAddress}}")"
+        --format="{{index .NetworkSettings.Networks.m2c.IPAddress}}")"
 }
 
 e2c_load_project_defaults_env() {
@@ -229,10 +232,6 @@ e2c_db() {
                 shift
                 e2c_db_mysql "$@"
             ;;
-            shell)
-                shift
-                e2c_db_shell "$@"
-            ;;
             import)
                 shift
                 e2c_db_import "$1"
@@ -259,18 +258,8 @@ e2c_db_mysql() {
     fi
 
     docker exec -${e2c_tty:+t}i "${E2C_CFG_DOMAIN_NAME}__db" mysql \
-        -hdb -u"$E2C_CFG_MYSQL_USER" -p"$E2C_CFG_MYSQL_PASSWORD" "$E2C_CFG_MYSQL_DATABASE" "$@"
-}
-
-e2c_db_shell() {
-    if [[ "$1" == "notty" ]]
-    then
-        e2c_tty=
-        shift
-    else
-        e2c_tty=1
-    fi
-    docker exec -${e2c_tty:+t}i "${E2C_CFG_DOMAIN_NAME}__db" /bin/sh "$@"
+        -h"${E2C_CFG_DOMAIN_NAME}__db" -u"$E2C_CFG_MYSQL_USER" \
+        -p"$E2C_CFG_MYSQL_PASSWORD" "$E2C_CFG_MYSQL_DATABASE" "$@"
 }
 
 e2c_db_mysqldump() {
@@ -283,7 +272,8 @@ e2c_db_mysqldump() {
     fi
 
     docker exec -${e2c_tty:+t}i "${E2C_CFG_DOMAIN_NAME}__db" mysqldump \
-        -hdb -u"$E2C_CFG_MYSQL_USER" -p"$E2C_CFG_MYSQL_PASSWORD" "$E2C_CFG_MYSQL_DATABASE" "$@"
+        -h"${E2C_CFG_DOMAIN_NAME}__db" -u"$E2C_CFG_MYSQL_USER" \
+        -p"$E2C_CFG_MYSQL_PASSWORD" "$E2C_CFG_MYSQL_DATABASE" "$@"
 }
 
 e2c_db_import() {
@@ -364,7 +354,6 @@ e2c_db_help() {
   mysql     Run mysql CLI command or open mysql command prompt.
   export    Export magento database to gzip compressed sql dump.
   import    Import plain sql or gzipped sql database dump file.
-  shell     Go inside container shell.
 
 \033[1;33mFlags:\033[0m
   --help    Display this information.
@@ -393,7 +382,7 @@ e2c_global() {
             e2c_global_update
         ;;
         *)
-            local e2c_global_services=("portainer" "mailhog" "dnsmasq" "traefik" "emma2click")
+            local e2c_global_services=("portainer" "mailhog" "dnsmasq" "traefik" "mage2click")
             local e2c_global_service=()
             local e2c_global_command=
 
@@ -403,7 +392,7 @@ e2c_global() {
                         e2c_global_command="$1"
                         shift
                     ;;
-                    portainer|mailhog|dnsmasq|traefik|emma2click)
+                    portainer|mailhog|dnsmasq|traefik|mage2click)
                         e2c_global_service+=($1)
                         shift
                     ;;
@@ -444,11 +433,15 @@ e2c_global_error() {
 
 e2c_global_load_env() {
     local config_env="$e2c_global_dir/docker/.env"
+
     [[ -f "$config_env" ]] && . "$config_env"
 }
+
 e2c_global_save_env() {
     local config_env="$e2c_global_dir/docker/.env"
+
     [[ -f "$config_env" ]] || mkdir -p "$(dirname "$config_env")" && touch "$config_env"
+
     set | grep '^E2C_GLOBAL_' > "$config_env"
 }
 
@@ -466,7 +459,7 @@ e2c_global_print_service() {
         traefik)
             e2c_msg "Traefik................................................................  "
         ;;
-        emma2click)
+        mage2click)
             e2c_msg "Emma2click.............................................................  "
         ;;
     esac
@@ -611,7 +604,6 @@ e2c_global_autostart() {
     esac
 }
 
-
 e2c_global_info() {
     local project="e2c"
     local spaces="$(printf "%-${#project}s" " ")"
@@ -653,11 +645,11 @@ e2c_global_update() {
     e2c_info_bold "\n[Update]\n\n"
     e2c_msg "Checking for update....................................................  "
     e2c_loading
-    remote_build="$(curl -sL https://raw.githubusercontent.com/freeyland/e2c/master/.m2c/build)"
-    
+    remote_build="$(curl -sL https://raw.githubusercontent.com/mage2click/e2c/master/.m2c/build)"
+
     if [[ "$remote_build" -gt "$build" ]]
     then
-        curl -sL -o e2c.run raw.githubusercontent.com/freeyland/e2c/master/e2c && \
+        curl -sL -o e2c.run raw.githubusercontent.com/mage2click/e2c/master/e2c && \
             e2c_result 0 && \
             chmod 755 e2c.run && \
             ./e2c.run
@@ -702,12 +694,29 @@ e2c_global_uninstall() {
             e2c_msg "Uninstalling...........................................................  "
             e2c_loading
             true
-            docker rm -vf $(docker ps \
+
+            local containers="$(docker ps \
                 --filter "label=com.docker.compose.project=${projects[$i]}" \
-                -qa) >"$e2c_log" 2>&1 && \
-            docker network rm $(docker network ls \
+                -qa)"
+
+            local volumes="$(docker volume ls \
                 --filter "label=com.docker.compose.project=${projects[$i]}" \
-                -q) >"$e2c_log" 2>&1
+                -q)"
+
+            local networks="$(docker network ls \
+                --filter "label=com.docker.compose.project=${projects[$i]}" \
+                -q)"
+
+            (
+                [[ -n ${containers} ]] && docker rm --force --volumes ${containers} >"$e2c_log" 2>&1 || true
+            ) && \
+            (
+                [[ -n ${volumes} ]] && docker volume rm --force ${volumes} >"$e2c_log" 2>&1 || true
+            ) && \
+            (
+                [[ -n ${networks} ]] && docker network rm --force ${networks} >"$e2c_log" 2>&1 || true
+            )
+
             e2c_result $?
         done
 
@@ -743,7 +752,7 @@ e2c_global_help() {
 
 \033[1;33mServices:\033[0m
   dnsmasq       Dnsmasq service.
-  emma2click    Emma2click service.
+  mage2click    Emma2click service.
   mailhog       Mailhog service.
   portainer     Portainer service.
   traefik       Traefik service.
@@ -787,11 +796,11 @@ e2c_node() {
         e2c_tty=1
     fi
 
-    docker exec -u app -${e2c_tty:+t}i "${E2C_CFG_DOMAIN_NAME}__php" grunt "$@"
+    docker exec -u app -${e2c_tty:+t}i "${E2C_CFG_DOMAIN_NAME}__php" node "$@"
 }
 
 e2c_redis() {
-    docker-compose exec "${E2C_CFG_DOMAIN_NAME}__redis" "$@"
+    docker exec "${E2C_CFG_DOMAIN_NAME}__redis" redis-cli "$@"
 }
 
 e2c_urn() {
@@ -829,56 +838,15 @@ e2c_help() {
   e2c <command> [arguments...] [--help]
 
 \033[1;33mCommands:\033[0m
-  add           Add optional service to project. (elasticsearch/ rabbitmq/ phpmyadmin/ varnish)
+  add           Add optional service to project.
   bash          Open the bash prompt on project php docker service.
   cli           Run any cli command without going into the bash prompt.
   composer      Run composer specific commands.
   db            Database related commands.
-  down          To be used inside a project directory to bring down all containers and remove them.
-  global        Run global commands.
+  down          Remove project docker containers, volumes, and networks.
   grunt         Run grunt specific commands.
   info          Print project info and status.
   init          Initialize project in the current directory.
-  logs          View the logs of a specific container.
-  magento, m    Run bin/magento specific commands.
-  magerun, mr   Run n98-magerun specific commands.
-  node          Run node specific commands.
-  npm           Run npm specific commands.
-  redis         Run redis specific commands.
-  remove        Remove optional service from project.
-  restart       Restart running docker services and starts all stopped ones.
-  share         Start sharing session over secure ngrok tunnels.
-  sign          Sign specified domain name with ssl certificate.
-  start         Start all stopped docker services.
-  status        Print project info and status.
-  stop          Stop all running docker services.
-  update        Update docker configuration to latest version.
-  urn           Generate URN for PHPStorm and remap paths for the host.
-  varnish       Run varnish specific commands.
-
-\033[1;33mFlags:\033[0m
-  --help        Display this information. To get information about the specific
-                command, use with corresponding command name. 
-
-e.g.: e2c global --help
-"
-    else
-    echo -e "
-\033[1;33mUsage:\033[0m
-  e2c <command> [args...] [--help]
-
-\033[1;33mCommands:\033[0m
-  add           Add optional service to project. (elasticsearch/ rabbitmq/ phpmyadmin/ varnish)
-  bash          Open the bash prompt on project php docker service.
-  cli           Run any cli command without going into the bash prompt.
-  composer      Run composer specific commands.
-  db            Database related commands.
-  down          To be used inside a project directory to bring down all containers and remove them.
-  global        Run global commands.
-  grunt         Run grunt specific commands.
-  info          Print project info and status.
-  init          Initialize project in the current directory.
-  logs          View the logs of a specific container.
   magento, m    Run bin/magento specific commands.
   magerun, mr   Run n98-magerun specific commands.
   node          Run node specific commands.
@@ -899,6 +867,45 @@ e.g.: e2c global --help
   --help        Display this information. To get information about the specific
                 command, use with corresponding command name.
 "
+    else
+    echo -e "
+\033[1;33mUsage:\033[0m
+  e2c <command> [args...] [--help]
+
+\033[1;33mCommands:\033[0m
+  add           Add optional service to project.
+  bash          Open the bash prompt on project php docker service.
+  cli           Run any cli command without going into the bash prompt.
+  composer      Run composer specific commands.
+  db            Database related commands.
+  down          Remove project docker containers, volumes, and networks.
+  grunt         Run grunt specific commands.
+  info          Print project info and status.
+  init          Initialize project in the current directory.
+  magento, m    Run bin/magento specific commands.
+  magerun, mr   Run n98-magerun specific commands.
+  mutagen       Run mutagen.io sync related commands.
+  node          Run node specific commands.
+  npm           Run npm specific commands.
+  push          Push specified file or directory to docker container.
+  pull          Pull specified file or directory from docker container.
+  redis         Run redis specific commands.
+  remove        Remove optional service from project.
+  restart       Restart running docker services and starts all stopped ones.
+  share         Start sharing session over secure ngrok tunnels.
+  sign          Sign specified domain name with ssl certificate.
+  start         Start all stopped docker services.
+  status        Print project info and status.
+  stop          Stop all running docker services.
+  sync          Control mutagen.io files sync with docker containers.
+  update        Update docker configuration to latest version.
+  urn           Generate URN for PHPStorm and remap paths for the host.
+  varnish       Run varnish specific commands.
+
+\033[1;33mFlags:\033[0m
+  --help        Display this information. To get information about the specific
+                command, use with corresponding command name.
+"
     fi
 
     exit 0
@@ -906,7 +913,7 @@ e.g.: e2c global --help
 
 e2c_init() {
     local e2c_nginx_versions=("1.17" "1.16" "1.15" "1.14" "1.13" "1.12" "1.11" "1.10" "1.9" "1.8")
-    local e2c_php_versions=("7.2" "7.1" "7.0" "5.6" "7.3")
+    local e2c_php_versions=("7.3" "7.2" "7.1" "7.0" "5.6")
     local e2c_mariadb_versions=("10.3" "10.2" "10.1" "10.0")
     local e2c_redis_versions=("5.0" "4.0" "3.2")
     local e2c_magento_versions=("2.3.3" "2.3.2" "2.3.1" "2.3.0" \
@@ -1282,7 +1289,7 @@ e2c_init() {
 
                 e2c_msg "\nSpecify full path to plain sql or gzipped database dump file to import.\n\n"
 
-                e2c_ask_text "Set the database dump file path (absolute path!):" \
+                e2c_ask_text "Set the database dump file path:" \
                              "" \
                              "Cannot locate database dump file at specified path: %s!\n" \
                              "" \
@@ -1327,8 +1334,6 @@ e2c_init() {
     e2c_local up
     e2c_push --all
 
-    cd "$e2c_project_dir"
-
     if [[ -f "$e2c_magento_db_import" ]]
     then
         e2c_db_import "$e2c_magento_db_import"
@@ -1339,8 +1344,10 @@ e2c_init() {
         e2c_msg "Started magento installation, it may take a while......................  "
         e2c_loading
 
+        rm -rf "$e2c_project_dir${E2C_CFG_MAGENTO_SRC:+/${E2C_CFG_MAGENTO_SRC}}/app/etc/env.php"
+
         e2c_magento notty setup:install \
-                --db-host=db \
+                --db-host=${E2C_CFG_DOMAIN_NAME}__db \
                 --db-name=${E2C_CFG_MYSQL_DATABASE} \
                 --db-user=${E2C_CFG_MYSQL_USER} \
                 --db-password=${E2C_CFG_MYSQL_PASSWORD} \
@@ -1626,9 +1633,6 @@ e2c_local() {
         info|status)
             e2c_local_info
         ;;
-        logs)
-            e2c_local_logs "$@"
-        ;;
         remove)
             shift
             e2c_local_remove "$@"
@@ -1673,7 +1677,7 @@ e2c_local() {
 
             if [[ -n ${e2c_local_command} ]]
             then
-               if ! (("${#e2c_local_service[@]}"))
+                if ! (("${#e2c_local_service[@]}"))
                 then
                     e2c_local_service=("${e2c_local_services[@]}")
                 fi
@@ -1840,11 +1844,6 @@ e2c_local_remove() {
     fi
 }
 
-
-e2c_local_logs() {
-    docker logs --follow "${E2C_CFG_DOMAIN_NAME}__$@"
-}
-
 e2c_local_update() {
     e2c_info_bold "\n[Update]\n\n"
 
@@ -1940,10 +1939,24 @@ e2c_local_container_remove() {
 
     if [[ -n ${service} ]]
     then
-        docker rm -vf $(docker ps \
-            --filter "label=com.docker.compose.project=${E2C_CFG_DOMAIN_NAME/.test/}" \
+        local project="${E2C_CFG_DOMAIN_NAME/.test/}"
+
+        local containers="$(docker ps \
+            --filter "label=com.docker.compose.project=$project" \
             --filter "label=com.docker.compose.service=$service" \
-            -qa) >"$e2c_log" 2>&1
+            -qa)"
+
+        local volumes="$(docker volume ls \
+            --filter "label=com.docker.compose.project=$project" \
+            --filter "label=com.docker.compose.service=$service" \
+            -q | grep "${project}_${service}_data")"
+
+        (
+            [[ -n ${containers} ]] && docker rm --force --volumes ${containers} >"$e2c_log" 2>&1 || true
+        ) && \
+        (
+            [[ -n ${volumes} ]] && docker volume rm --force ${volumes} >"$e2c_log" 2>&1 || true
+        )
 
         return $?
     fi
@@ -1989,7 +2002,7 @@ e2c_local_project_up() {
 
     if [[ -n ${service} ]]
     then
-         (
+        (
             cd "$e2c_project_dir/.m2c/docker/" && \
             docker-compose --project-name "${E2C_CFG_DOMAIN_NAME/.test/}" \
                 --file docker-compose.yml \
@@ -2009,12 +2022,12 @@ e2c_local_project_up() {
 e2c_local_list_services() {
     (
         cd "$e2c_project_dir/.m2c/docker/" && \
-        docker-compose --project-name "${M2C_CFG_DOMAIN_NAME/.test/}" \
+        docker-compose --project-name "${E2C_CFG_DOMAIN_NAME/.test/}" \
             --file docker-compose.yml \
-            --file docker-compose.$([[ -n ${M2C_CFG_VARNISH} ]] && echo "varnish" || echo "nginx").yml \
-            ${M2C_CFG_PHPMYADMIN:+--file docker-compose.phpmyadmin.yml} \
-            ${M2C_CFG_ELASTICSEARCH:+--file docker-compose.elasticsearch.yml} \
-            ${M2C_CFG_RABBITMQ:+--file docker-compose.rabbitmq.yml} \
+            --file docker-compose.$([[ -n ${E2C_CFG_VARNISH} ]] && echo "varnish" || echo "nginx").yml \
+            ${E2C_CFG_PHPMYADMIN:+--file docker-compose.phpmyadmin.yml} \
+            ${E2C_CFG_ELASTICSEARCH:+--file docker-compose.elasticsearch.yml} \
+            ${E2C_CFG_RABBITMQ:+--file docker-compose.rabbitmq.yml} \
             --file docker-compose.${e2c_os}.yml \
             ps --services --all
     )
@@ -2022,12 +2035,29 @@ e2c_local_list_services() {
 }
 
 e2c_local_project_down() {
-    docker rm -vf $(docker ps \
-        --filter "label=com.docker.compose.project=${E2C_CFG_DOMAIN_NAME/.test/}" \
-        -qa) >"$e2c_log" 2>&1 && \
-    docker network rm $(docker network ls \
-        --filter "label=com.docker.compose.project=${E2C_CFG_DOMAIN_NAME/.test/}" \
-        -q) >"$e2c_log" 2>&1
+    local project="${E2C_CFG_DOMAIN_NAME/.test/}"
+
+    local containers="$(docker ps \
+        --filter "label=com.docker.compose.project=$project" \
+        -qa)"
+
+    local volumes="$(docker volume ls \
+        --filter "label=com.docker.compose.project=$project" \
+        -q)"
+
+    local networks="$(docker network ls \
+        --filter "label=com.docker.compose.project=$project" \
+        -q)"
+
+    (
+        [[ -n ${containers} ]] && docker rm --force --volumes ${containers} >"$e2c_log" 2>&1 || true
+    ) && \
+    (
+        [[ -n ${volumes} ]] && docker volume rm --force ${volumes} >"$e2c_log" 2>&1 || true
+    ) && \
+    (
+        [[ -n ${networks} ]] && docker network rm --force ${networks} >"$e2c_log" 2>&1 || true
+    )
 
     return $?
 }

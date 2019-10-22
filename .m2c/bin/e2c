@@ -296,7 +296,7 @@ e2c_requirements() {
     [[ ${test} -eq 0 ]] || pass=0
 
     test=0
-    e2c_msg "Ports 80,443 and 53 availability check....................................  "
+    e2c_msg "Ports 80, 443 and 53 availability check................................  "
     e2c_loading
 
     local ports=
@@ -306,14 +306,10 @@ e2c_requirements() {
         --filter "label=com.docker.compose.service=traefik" \
         -q)" ]]; then
         if lsof -PiTCP:80 -sTCP:LISTEN -t >/dev/null 2>&1; then
-            echo "Port 80 is already used by some other service." >"$e2c_log"
-            test=1
             ports="TCP 80"
         fi
 
         if lsof -PiTCP:443 -sTCP:LISTEN -t >/dev/null 2>&1; then
-            echo "Port 443 is already used by some other service." >"$e2c_log"
-            test=1
             if [[ -z ${ports} ]]; then
                 ports="TCP 443"
             else
@@ -345,6 +341,16 @@ e2c_requirements() {
     if [[ ${pass} -eq 0 ]]; then
         exit 1
     fi
+
+    e2c_msg "Password required to trust the CA certificate and create symlinks......  "
+    e2c_loading
+    e2c_result 0
+    tput cnorm
+    while ! sudo -p "$(printf "\033[0mPassword:")$(printf "\033[1;31m%s" " ")" true; do
+        exit 1
+    done
+    tput civis
+    e2c_erase_prev_lines 1
 }
 
 e2c_install() {
@@ -363,7 +369,8 @@ e2c_install() {
     tail -n+${archive} "${0}" | tar -xzp -C ~ && >"$e2c_log" 2>&1
     test=$?
     if [[ "$test" == "0" ]]; then
-        ln -sf "$e2c_global_dir"/bin/e2c /usr/local/bin/e2c
+        sudo ln -sf "$e2c_global_dir"/bin/e2c /usr/local/bin/e2c
+
         if [[ ! -f "$e2c_global_dir"/ssl/config/v3_ext.conf ]]; then
             mv "$e2c_global_dir"/ssl/config/v3_ext.blank.conf "$e2c_global_dir"/ssl/config/v3_ext.conf
         else
@@ -371,19 +378,6 @@ e2c_install() {
         fi
     fi
     e2c_result ${test}
-
-    case ${e2c_os} in
-    darwin)
-        if [[ ! -f "$e2c_global_dir"/mutagen/mutagen || "$(echo "$("$e2c_global_dir"/mutagen/mutagen version)")" != "0.10.0" ]]; then
-            e2c_info_bold "\n[Installing Mutagen for docker sync performance]\n\n"
-            mkdir -p "$e2c_global_dir"/mutagen >"$e2c_log" 2>&1
-            curl -L \
-                "https://github.com/mutagen-io/mutagen/releases/download/v0.10.0/mutagen_darwin_amd64_v0.10.0.tar.gz" |
-                tar xzf - -o -C "$e2c_global_dir"/mutagen/
-            chmod 0755 "$e2c_global_dir"/mutagen/mutagen
-        fi
-        ;;
-    esac
 
     if [[ ! -f "$e2c_global_dir"/ssl/certs/rootCA.crt ]] || [[ ! -f "$e2c_global_dir"/ssl/private/rootCA.key ]]; then
         e2c_info_bold "\n[Installing CA certificate]\n\n"
@@ -411,17 +405,7 @@ e2c_install() {
         test=$?
         e2c_result ${test}
 
-        e2c_msg "Password is required to trust CA certificate...........................  "
-        e2c_loading
-        e2c_result 0
-        tput cnorm
-        while ! sudo -p "$(printf "\033[0mPassword:")$(printf "\033[1;31m%s" " ")" true; do
-            exit 1
-        done
-        tput civis
-        e2c_erase_prev_lines 1
-
-        e2c_msg "Trusting root CA certificate ..........................................  "
+        e2c_msg "Trusting root CA certificate...........................................  "
         e2c_loading
         case "$e2c_os" in
         darwin)
@@ -434,12 +418,13 @@ e2c_install() {
             if [[ -d /usr/local/share/ca-certificates ]] && [[ ! -f /usr/local/share/ca-certificates/e2c-root-ca.crt ]]; then
                 yes | sudo cp -rf "$e2c_global_dir"/ssl/certs/rootCA.crt \
                     /usr/local/share/ca-certificates/e2c-root-ca.crt >"$e2c_log" 2>&1 &&
-                    sudo update-ca-certificates
+                    sudo update-ca-certificates >"$e2c_log" 2>&1
                 test=$?
             elif [[ -d /etc/pki/ca-trust/source/anchors ]] && [[ ! -f /etc/pki/ca-trust/source/anchors/e2c-root-ca.crt ]]; then
                 yes | sudo cp -rf "$e2c_global_dir"/ssl/certs/rootCA.crt \
                     /etc/pki/ca-trust/source/anchors/e2c-root-ca.crt >"$e2c_log" 2>&1 &&
-                    sudo update-ca-trust && sudo update-ca-trust enable
+                    sudo update-ca-trust >"$e2c_log" 2>&1 &&
+                    sudo update-ca-trust enable >"$e2c_log" 2>&1
                 test=$?
             else
                 echo "Currently we are not supporting $e2c_os based OS yet." >"$e2c_log"
@@ -449,6 +434,29 @@ e2c_install() {
         esac
         e2c_result ${test}
     fi
+
+    case ${e2c_os} in
+    darwin)
+        if [[ ! -f /etc/resolver/test || "$(cat /etc/resolver/test)" != "nameserver 127.0.0.1" ]]; then
+            e2c_info_bold "\n[Configuring .test domains resolver]\n\n"
+
+            e2c_msg "Creating the resolver file.............................................  "
+            e2c_loading
+            sudo mkdir -p /etc/resolver &&
+                sudo bash -c 'echo "nameserver 127.0.0.1" > /etc/resolver/test'
+            e2c_result $?
+        fi
+
+        if [[ ! -f "$e2c_global_dir"/mutagen/mutagen || "$(echo "$("$e2c_global_dir"/mutagen/mutagen version)")" != "0.10.0" ]]; then
+            e2c_info_bold "\n[Installing Mutagen for docker sync performance]\n\n"
+            mkdir -p "$e2c_global_dir"/mutagen >"$e2c_log" 2>&1
+            curl -L \
+                "https://github.com/mutagen-io/mutagen/releases/download/v0.10.0/mutagen_darwin_amd64_v0.10.0.tar.gz" |
+                tar xzf - -o -C "$e2c_global_dir"/mutagen/
+            chmod 0755 "$e2c_global_dir"/mutagen/mutagen
+        fi
+        ;;
+    esac
 }
 
 e2c_on_exit() {
@@ -493,8 +501,11 @@ if [[ "$0" != "/usr/local/bin/e2c" ]]; then
     rm -rf "$e2c_global_dir"/{bin,completions,dnsmasq,docker,functions,local,traefik,www,build} >/dev/null 2>&1
     e2c_install
     . "$e2c_global_dir"/functions/e2c
+
     e2c_global_load_env
+
     e2c_sign "e2c.test"
+
     e2c_global up
 
     e2c_info_bold "\n[Installation finished]\n\n"
@@ -511,6 +522,7 @@ else
     . "$e2c_global_dir"/functions/e2c
     declare -r e2c_project_dir="$(e2c_get_project_dir)"
     e2c_log="$e2c_project_dir"/.m2c/log
+
     e2c_load_env
 
     case "$1" in
@@ -535,11 +547,11 @@ else
         ;;
     *)
         case "$1" in
-        up)
+        up | down)
             e2c_local_project_check_dir
             e2c_local $@
             ;;
-        add | down | logs | info | remove | restart | start | status | stop | update)
+        add | info | remove | restart | start | status | stop | update)
             e2c_local_project_check
             e2c_local $@
             ;;
