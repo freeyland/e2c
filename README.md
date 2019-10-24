@@ -150,6 +150,10 @@ The containers will be deleted and the persistant volumes will be removed. Note 
 
 Use the absolute path to your file. There is also a bug on Mac that you cannot hib the back button.
 
+### What folders are synced
+
+
+
 ## XDEBUG
 [XDEBUG info](XDEBUG.md)
 ## License
