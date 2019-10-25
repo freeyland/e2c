@@ -296,7 +296,7 @@ e2c_requirements() {
     [[ ${test} -eq 0 ]] || pass=0
 
     test=0
-    e2c_msg "Ports 80, 443 and 53 availability check................................  "
+    e2c_msg "Ports 80, 443 availability check................................  "
     e2c_loading
 
     local ports=

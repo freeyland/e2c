@@ -67,7 +67,7 @@ e2c_load_project_defaults_env() {
 
 e2c_validate_domain() {
     local domain=$1
-
+    return 0
     if [[ -n ${domain} && -n $(echo "$domain" | grep -E \
         '(^(?:[a-zA-Z0-9](?:(?:[a-zA-Z0-9\-]){0,61}[a-zA-Z0-9])?\.)+test$)') ]]
     then
@@ -93,7 +93,7 @@ e2c_validate_file() {
 
 e2c_validate_url_path() {
     local value=$1
-
+    return 0
     [[ -n ${value} && -n $(echo "$value" | grep -E \
         '(^(?:[a-zA-Z0-9](?:(?:[a-zA-Z0-9\-\_])[a-zA-Z0-9])?)+$)') ]] && return 0 || return 1
 }
