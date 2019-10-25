@@ -318,16 +318,16 @@ e2c_requirements() {
         fi
     fi
 
-    if [[ -z "$(docker ps \
-        --filter "label=com.docker.compose.project=e2c" \
-        --filter "label=com.docker.compose.service=dnsmasq" \
-        -q)" ]] && lsof -PiUDP:53 -tn >/dev/null 2>&1; then
-        if [[ -z ${ports} ]]; then
-            ports="UDP 53"
-        else
-            ports="$ports and UDP 53"
-        fi
-    fi
+    #if [[ -z "$(docker ps \
+    #    --filter "label=com.docker.compose.project=e2c" \
+    #    --filter "label=com.docker.compose.service=dnsmasq" \
+    #    -q)" ]] && lsof -PiUDP:53 -tn >/dev/null 2>&1; then
+    #    if [[ -z ${ports} ]]; then
+    #        ports="UDP 53"
+    #    else
+    #        ports="$ports and UDP 53"
+    #    fi
+    #fi
 
     if [[ -n ${ports} ]]; then
         test=1
