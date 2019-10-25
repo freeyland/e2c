@@ -67,7 +67,7 @@ e2c_load_project_defaults_env() {
 
 e2c_validate_domain() {
     local domain=$1
-
+    return 0
     if [[ -n ${domain} && -n $(echo "$domain" | grep -E \
         '(^(?:[a-zA-Z0-9](?:(?:[a-zA-Z0-9\-]){0,61}[a-zA-Z0-9])?\.)+test$)') ]]
     then
@@ -93,7 +93,7 @@ e2c_validate_file() {
 
 e2c_validate_url_path() {
     local value=$1
-
+    return 0
     [[ -n ${value} && -n $(echo "$value" | grep -E \
         '(^(?:[a-zA-Z0-9](?:(?:[a-zA-Z0-9\-\_])[a-zA-Z0-9])?)+$)') ]] && return 0 || return 1
 }
@@ -382,7 +382,7 @@ e2c_global() {
             e2c_global_update
         ;;
         *)
-            local e2c_global_services=("portainer" "mailhog" "traefik" "emma2click")
+            local e2c_global_services=("portainer" "mailhog" "dnsmasq" "traefik" "emma2click")
             local e2c_global_service=()
             local e2c_global_command=
 
@@ -392,7 +392,7 @@ e2c_global() {
                         e2c_global_command="$1"
                         shift
                     ;;
-                    portainer|mailhog|traefik|emma2click)
+                    portainer|mailhog|dnsmasq|traefik|emma2click)
                         e2c_global_service+=($1)
                         shift
                     ;;
@@ -452,6 +452,9 @@ e2c_global_print_service() {
         ;;
         mailhog)
             e2c_msg "Mailhog................................................................  "
+        ;;
+        dnsmasq)
+            e2c_msg "Dnsmasq................................................................  "
         ;;
         traefik)
             e2c_msg "Traefik................................................................  "
@@ -626,6 +629,11 @@ e2c_global_info() {
         e2c_info "Mailhog: "
         e2c_info_bold "$(echo "${project}" | sed 's/.*/https:\/\/mailhog.&.test/')\n"
     fi
+    if echo "$containers" | grep -q "dnsmasq"
+    then
+        e2c_info "Dnsmasq: "
+        e2c_info_bold "$(echo "${project}" | sed 's/.*/https:\/\/dnsmasq.&.test/')\n"
+    fi
     e2c_msg "\n$containers"
     exit 0
 }
@@ -743,6 +751,7 @@ e2c_global_help() {
   uninstall     Uninstall Emma2click toolset from system.
 
 \033[1;33mServices:\033[0m
+  dnsmasq       Dnsmasq service.
   emma2click    Emma2click service.
   mailhog       Mailhog service.
   portainer     Portainer service.
