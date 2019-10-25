@@ -65,7 +65,7 @@ services:
   dnsmasq:
     container_name: e2c.test__dnsmasq
     image: jpillora/dnsmasq:1.1
-    ports:
+    #ports:
       #- 53:53/udp
     volumes:
       - ~/.m2c/dnsmasq/dnsmasq.conf:/etc/dnsmasq.conf
