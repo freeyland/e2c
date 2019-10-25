@@ -424,7 +424,7 @@ e2c_install() {
         e2c_msg "Signing CA certificate.................................................  "
         e2c_loading
         openssl req -new -x509 -nodes -sha256 -days 825 \
-            -passin pass:${pass} -subj "/O=Mage2click/OU=IT/CN=e2c.local" \
+            -passin pass:${pass} -subj "/O=Emma2click/OU=IT/CN=e2c.local" \
             -config "$e2c_global_dir"/ssl/config/rootca.conf \
             -key "$e2c_global_dir"/ssl/private/rootCA.key \
             -out "$e2c_global_dir"/ssl/certs/rootCA.crt >"$e2c_log" 2>&1
@@ -514,16 +514,16 @@ then
 
     if [[ ! -f "$e2c_global_dir"/build ]]
     then
-        message="Install Mage2click Docker Magento environment and toolset to your system?"
+        message="Install Emma2click Docker Magento environment and toolset to your system?"
     else
         e2c_is_update=1
         e2c_res="$(e2c --version 2>/dev/null | tr -dc '[:print:]' | sed 's/\[0m\[?12l\[?25h//')"
 
         if [[ "$e2c_res" == "$e2c_version" ]]
         then
-            message="Hooray! You have the latest version of Mage2click toolset. Reinstall?"
+            message="Hooray! You have the latest version of Emma2click toolset. Reinstall?"
         else
-            message="Mage2click toolset v$e2c_res is found on your system. Update it to v$e2c_version?"
+            message="Emma2click toolset v$e2c_res is found on your system. Update it to v$e2c_version?"
         fi
     fi
 
@@ -546,7 +546,7 @@ then
     e2c_global up
 
     e2c_info_bold "\n[Installation finished]\n\n"
-    e2c_msg "Mage2click toolset is successfully installed! \n\nRun \`e2c --help\` command for usage information. \nVisit local https://e2c.test to check useful links to included services.\n\n"
+    e2c_msg "Emma2click toolset is successfully installed! \n\nRun \`e2c --help\` command for usage information. \nVisit local https://e2c.test to check useful links to included services.\n\n"
 
     if [[ -z ${e2c_is_update} ]]
     then

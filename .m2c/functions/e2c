@@ -382,7 +382,7 @@ e2c_global() {
             e2c_global_update
         ;;
         *)
-            local e2c_global_services=("portainer" "mailhog" "dnsmasq" "traefik" "mage2click")
+            local e2c_global_services=("portainer" "mailhog" "dnsmasq" "traefik" "emma2click")
             local e2c_global_service=()
             local e2c_global_command=
 
@@ -392,7 +392,7 @@ e2c_global() {
                         e2c_global_command="$1"
                         shift
                     ;;
-                    portainer|mailhog|dnsmasq|traefik|mage2click)
+                    portainer|mailhog|dnsmasq|traefik|emma2click)
                         e2c_global_service+=($1)
                         shift
                     ;;
@@ -459,8 +459,8 @@ e2c_global_print_service() {
         traefik)
             e2c_msg "Traefik................................................................  "
         ;;
-        mage2click)
-            e2c_msg "Mage2click.............................................................  "
+        emma2click)
+            e2c_msg "Emma2click.............................................................  "
         ;;
     esac
 }
@@ -612,7 +612,7 @@ e2c_global_info() {
             --format 'table {{.ID}}  {{.Names}}\t{{.Image}}\t{{.Status}}' -a | \
             sed "s/${project}.test__//; s/${spaces}       IMAGE/IMAGE/")\n"
 
-    e2c_info "\nMage2click: "
+    e2c_info "\nEmma2click: "
     e2c_info_bold "$(echo "${project}" | sed 's/.*/https:\/\/&.test/')\n"
     if echo "$containers" | grep -q "traefik"
     then
@@ -645,11 +645,11 @@ e2c_global_update() {
     e2c_info_bold "\n[Update]\n\n"
     e2c_msg "Checking for update....................................................  "
     e2c_loading
-    remote_build="$(curl -sL https://raw.githubusercontent.com/mage2click/e2c/master/.m2c/build)"
+    remote_build="$(curl -sL https://raw.githubusercontent.com/emma2click/e2c/master/.m2c/build)"
 
     if [[ "$remote_build" -gt "$build" ]]
     then
-        curl -sL -o e2c.run raw.githubusercontent.com/mage2click/e2c/master/e2c && \
+        curl -sL -o e2c.run raw.githubusercontent.com/emma2click/e2c/master/e2c && \
             e2c_result 0 && \
             chmod 755 e2c.run && \
             ./e2c.run
@@ -670,7 +670,7 @@ e2c_global_uninstall() {
     e2c_msg "you backed up projects databases. Use \`e2c db export\` per project\n"
     e2c_msg "to create database dump file as backup.\n\n"
 
-    e2c_ask_bool "Uninstall Mage2click toolset from your system?"
+    e2c_ask_bool "Uninstall Emma2click toolset from your system?"
 
     if [[ -n ${e2c_res} ]]
     then
@@ -686,7 +686,7 @@ e2c_global_uninstall() {
         do
             if [[ "${projects[$i]}" == "e2c" ]]
             then
-                e2c_info "\nMage2click: "
+                e2c_info "\nEmma2click: "
             else
                 e2c_info "\nProject: "
             fi
@@ -731,7 +731,7 @@ e2c_global_uninstall() {
 e2c_global_help() {
     echo -e "
 \033[1;33mInformation:\033[0m
-  Control Mage2click toolset installation and its docker services.
+  Control Emma2click toolset installation and its docker services.
 
 \033[1;33mUsage:\033[0m
   e2c global <command> [--help]
@@ -741,18 +741,18 @@ e2c_global_help() {
 
 \033[1;33mCommands:\033[0m
   autostart     Configure autostart of toolset docker services.
-  projects      Show existing Mage2click-backed projects.
-  restart       Restart Mage2click toolset docker services.
-  start         Start stopped Mage2click toolset docker services.
-  stop          Stop running Mage2click toolset docker services.
-  up            Create and start Mage2click toolset docker containers,
+  projects      Show existing Emma2click-backed projects.
+  restart       Restart Emma2click toolset docker services.
+  start         Start stopped Emma2click toolset docker services.
+  stop          Stop running Emma2click toolset docker services.
+  up            Create and start Emma2click toolset docker containers,
                 networks and services.
-  update        Check Mage2click toolset for updates.
-  uninstall     Uninstall Mage2click toolset from system.
+  update        Check Emma2click toolset for updates.
+  uninstall     Uninstall Emma2click toolset from system.
 
 \033[1;33mServices:\033[0m
   dnsmasq       Dnsmasq service.
-  mage2click    Mage2click service.
+  emma2click    Emma2click service.
   mailhog       Mailhog service.
   portainer     Portainer service.
   traefik       Traefik service.
@@ -2641,7 +2641,7 @@ e2c_sign() {
             -key "$e2c_ssl_dir"/private/e2c.key \
             -out "$e2c_ssl_dir"/certs/e2c.csr \
             -config "$e2c_ssl_dir"/config/openssl.conf \
-            -subj "/O=Mage2click/OU=IT/CN=${e2c_domains[0]}" >"$e2c_log" 2>&1
+            -subj "/O=Emma2click/OU=IT/CN=${e2c_domains[0]}" >"$e2c_log" 2>&1
         e2c_result $?
 
         if [[ "$e2c_os" == "darwin" ]]
