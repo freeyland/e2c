@@ -318,17 +318,6 @@ e2c_requirements() {
         fi
     fi
 
-    #if [[ -z "$(docker ps \
-    #    --filter "label=com.docker.compose.project=e2c" \
-    #    --filter "label=com.docker.compose.service=dnsmasq" \
-    #    -q)" ]] && lsof -PiUDP:53 -tn >/dev/null 2>&1; then
-    #    if [[ -z ${ports} ]]; then
-    #        ports="UDP 53"
-    #    else
-    #        ports="$ports and UDP 53"
-    #    fi
-    #fi
-
     if [[ -n ${ports} ]]; then
         test=1
         echo "$ports already used by some other service.\n" >"$e2c_log"
@@ -498,7 +487,7 @@ if [[ "$0" != "/usr/local/bin/e2c" ]]; then
     fi
 
     e2c_requirements
-    rm -rf "$e2c_global_dir"/{bin,completions,dnsmasq,docker,functions,local,traefik,www,build} >/dev/null 2>&1
+    rm -rf "$e2c_global_dir"/{bin,completions,docker,functions,local,traefik,www,build} >/dev/null 2>&1
     e2c_install
     . "$e2c_global_dir"/functions/e2c
 

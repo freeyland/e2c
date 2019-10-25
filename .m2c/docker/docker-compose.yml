@@ -62,19 +62,6 @@ services:
       - traefik.port=8025
     restart: ${E2C_GLOBAL_SERVICES_AUTO_START}
 
-  #dnsmasq:
-  #  container_name: e2c.test__dnsmasq
-  #  image: jpillora/dnsmasq:1.1
-  #  ports:
-  #    #- 53:53/udp
-  #  volumes:
-  #    - ~/.m2c/dnsmasq/dnsmasq.conf:/etc/dnsmasq.conf
-  #  labels:
-  #    - traefik.enable=true
-  #    - traefik.frontend.rule=Host:dnsmasq.e2c.test
-  #    - traefik.port=8080
-  #  restart: ${E2C_GLOBAL_SERVICES_AUTO_START}
-
 volumes:
   portainer:
 
