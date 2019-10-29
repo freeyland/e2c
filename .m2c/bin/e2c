@@ -142,7 +142,7 @@ e2c_ask_bool() {
     do
         read -n 1 -srp "$(e2c_msg "$message $(e2c_info_bold "$opts")") " res
         e2c_erase_current_line
-        if [[ "$res" = "Y" || "$res" = "y" ]]
+        if [[ "$res" = "Y" || "$res" = "y" || "$res" = "" ]]
         then
             e2c_msg "$message $(e2c_info_bold "[$res]")\n"
             res=1
