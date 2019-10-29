@@ -2,8 +2,8 @@ FROM    alpine:3.10
 
 LABEL   maintainer="Emma2click, Dmitry Shkoliar @shkoliar"
 
-ENV     C_UID=${C_UID:-1000}
-ENV     C_GID=${C_GID:-1000}
+ENV     E2C_CFG_C_UID=${E2C_CFG_C_UID:-1000}
+ENV     E2C_CFG_C_GID=${E2C_CFG_C_GID:-1000}
 
 COPY    common/conf-xdebug/php.ini /etc/php7/conf.d/
 COPY    common/conf-xdebug/php-fpm.conf /etc/php7/
@@ -57,8 +57,8 @@ rm -rf /var/cache/apk/* && \
 rm -rf /tmp/* && \
 \
 \
-addgroup -g $C_UID -S app && \
-adduser -u $C_GID -S app -G app -h /var/www -s /bin/bash && \
+addgroup -g $E2C_CFG_C_UID -S app && \
+adduser -u $E2C_CFG_C_GID -S app -G app -h /var/www -s /bin/bash && \
 \
 \
 mkdir -p /var/www/html /var/www/.config /sock && \

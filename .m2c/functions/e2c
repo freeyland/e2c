@@ -98,6 +98,11 @@ e2c_validate_url_path() {
         '(^(?:[a-zA-Z0-9](?:(?:[a-zA-Z0-9\-\_])[a-zA-Z0-9])?)+$)') ]] && return 0 || return 1
 }
 
+e2c_validate_id() {
+    local value=$1
+    return 0
+}
+
 e2c_validate_not_empty() {
     local value=$1
 
@@ -1244,6 +1249,7 @@ e2c_init() {
             then
                 e2c_set_opt_version "Magento" "${e2c_magento_versions[@]}"
             fi
+            
 
             if [[ "${E2C_CFG_MAGENTO:0:1}" == "2" ]]
             then
@@ -1258,6 +1264,24 @@ e2c_init() {
                          e2c_validate_url_path
 
             E2C_CFG_ADMIN_URL="$e2c_res"
+
+            if [[ "$e2c_os" != "darwin" ]]
+                e2c_ask_text "Provide user id (id -u):" \
+                            "1000" \
+                            "Invalid id format: %s!\n" \
+                            "" \
+                            e2c_validate_id
+
+                E2C_CFG_C_UID="$e2c_res"
+
+                e2c_ask_text "Provide group id (id -u):" \
+                            "1000" \
+                            "Invalid id format: %s!\n" \
+                            "" \
+                            e2c_validate_id
+
+                E2C_CFG_C_GID="$e2c_res"
+            fi
 
             e2c_save_project_env
         else

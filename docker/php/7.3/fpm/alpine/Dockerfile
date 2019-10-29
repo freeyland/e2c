@@ -3,8 +3,8 @@ FROM    alpine:3.10
 LABEL   maintainer="Emma2Click, Frederick Eyland"
 
 ENV     COMPOSER_ALLOW_SUPERUSER=1
-ENV     C_UID=${C_UID:-1000}
-ENV     C_GID=${C_GID:-1000}
+ENV     E2C_CFG_C_UID=${E2C_CFG_C_UID:-1000}
+ENV     E2C_CFG_C_GID=${E2C_CFG_C_GID:-1000}
 
 COPY    common/conf/php.ini /etc/php7/conf.d/
 COPY    common/conf/php-fpm.conf /etc/php7/
@@ -65,8 +65,8 @@ RUN     apk update && \
         rm -rf /tmp/* && \
         \
         \
-        addgroup -g $C_GID -S app && \
-        adduser -u $C_UID -S app -G app -h /var/www -s /bin/bash && \
+        addgroup -g $E2C_CFG_C_GID -S app && \
+        adduser -u $E2C_CFG_C_UID -S app -G app -h /var/www -s /bin/bash && \
         echo 'export PS1="\w $ "' > /var/www/.bashrc && \
         \
         \

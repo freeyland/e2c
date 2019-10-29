@@ -8,8 +8,8 @@ services:
 
   php:
     environment:
-      - C_UID=${C_UID:-1000}
-      - C_GID=${C_GID:-1000}
+      - E2C_CFG_C_UID=${E2C_CFG_C_UID:-1000}
+      - E2C_CFG_C_GID=${E2C_CFG_C_GID:-1000}
     volumes:
       - ~/.composer:/var/www/.composer
       - ~/.m2c/ssl/certs:/usr/share/ca-certificates/e2c:ro
