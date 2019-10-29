@@ -7,6 +7,9 @@ services:
       - sock_data:/sock
 
   php:
+    environment:
+      - C_UID=${C_UID:-1000}
+      - C_GID=${C_GID:-1000}
     volumes:
       - ~/.composer:/var/www/.composer
       - ~/.m2c/ssl/certs:/usr/share/ca-certificates/e2c:ro

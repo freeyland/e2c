@@ -152,6 +152,18 @@ Use the absolute path to your file. There is also a bug on Mac that you cannot h
 
 ### What folders are synced
 
+ignore:
+      paths:
+        - .idea
+        - .vscode
+        - .m2c
+        - /bin
+        - /generated
+        - /pub/media/catalog/product
+        - /pub/static
+        - /var
+        - /vendor
+        - node_modules
 
 
 ## XDEBUG

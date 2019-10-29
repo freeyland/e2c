@@ -3,16 +3,16 @@
 HOME="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 
 #VERSIONS=("5.6" "7.0" "7.1" "7.2" "7.3")
-VERSIONS=("7.2")
+VERSIONS=("7.3")
 
 for i in "${!VERSIONS[@]}"; do
-    echo "---------------------------------------------------------------   Building for ${VERSIONS[$i]}"
+    echo "---------------------------------------------------------------   Building for alpine ${VERSIONS[$i]}"
     docker build -f "${HOME}/${VERSIONS[$i]}/fpm/alpine/Dockerfile" \
         -t "freeyland-e2c-php-fpm-${VERSIONS[$i]}-alpine" \
         "${HOME}"
     docker tag "freeyland-e2c-php-fpm-${VERSIONS[$i]}-alpine" \
         "freeyland/e2c:php-fpm-${VERSIONS[$i]}-alpine"
-
+    echo "---------------------------------------------------------------   Building for x-debug alpine ${VERSIONS[$i]}"
     docker build -f "${HOME}/${VERSIONS[$i]}/fpm-xdebug/alpine/Dockerfile" \
         -t "freeyland-e2c-php-fpm-${VERSIONS[$i]}-xdebug-alpine" \
         "${HOME}"
