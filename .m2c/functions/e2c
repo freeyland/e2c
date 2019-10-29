@@ -1198,8 +1198,8 @@ e2c_init() {
             if [[ "$e2c_os" == "darwin" ]]
             then
                 e2c_info_bold "\n[Configure linux]\n\n"
-                userid=${id -u}
-                groupid=${id -g}
+                userid=${"id -u"}
+                groupid=${"id -g"}
 
                 e2c_ask_text "Provide user id (id -u):" \
                             "$userid" \
