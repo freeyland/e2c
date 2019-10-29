@@ -1201,7 +1201,7 @@ e2c_init() {
 
 
                 e2c_ask_text "Provide user id (id -u):" \
-                            id -u \
+                            "id -u" \
                             "Invalid id format: %s!\n" \
                             "" \
                             e2c_validate_id
