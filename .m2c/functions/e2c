@@ -1265,26 +1265,7 @@ e2c_init() {
 
             E2C_CFG_ADMIN_URL="$e2c_res"
 
-            if [[ "$e2c_os" != "darwin" ]]
-            then
-
-                e2c_ask_text "Provide user id (id -u):" \
-                            "1000" \
-                            "Invalid id format: %s!\n" \
-                            "" \
-                            e2c_validate_id
-
-                E2C_CFG_C_UID="$e2c_res"
-
-                e2c_ask_text "Provide group id (id -u):" \
-                            "1000" \
-                            "Invalid id format: %s!\n" \
-                            "" \
-                            e2c_validate_id
-
-                E2C_CFG_C_GID="$e2c_res"
-                
-            fi
+            
 
             e2c_save_project_env
         else
