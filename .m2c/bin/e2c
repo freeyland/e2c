@@ -144,6 +144,7 @@ e2c_ask_bool() {
         e2c_erase_current_line
         if [[ "$res" = "Y" || "$res" = "y" || "$res" = "" ]]
         then
+            res="Y"
             e2c_msg "$message $(e2c_info_bold "[$res]")\n"
             res=1
             break
