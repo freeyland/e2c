@@ -1198,10 +1198,11 @@ e2c_init() {
             if [[ "$e2c_os" == "darwin" ]]
             then
                 e2c_info_bold "\n[Configure linux]\n\n"
-
+                userid=${id -u}
+                groupid=${id -g}
 
                 e2c_ask_text "Provide user id (id -u):" \
-                            "id -u" \
+                            "$userid" \
                             "Invalid id format: %s!\n" \
                             "" \
                             e2c_validate_id
@@ -1209,7 +1210,7 @@ e2c_init() {
                 E2C_CFG_C_UID="$e2c_res"
 
                 e2c_ask_text "Provide group id (id -u):" \
-                            id -g \
+                            "$groupid" \
                             "Invalid id format: %s!\n" \
                             "" \
                             e2c_validate_id
