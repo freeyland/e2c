@@ -1195,6 +1195,29 @@ e2c_init() {
 
             e2c_set_opt_version "Redis" "${e2c_redis_versions[@]}"
 
+            if [[ "$e2c_os" == "darwin" ]]
+            then
+                e2c_info_bold "\n[Configure linux]\n\n"
+
+
+                e2c_ask_text "Provide user id (id -u):" \
+                            id -u \
+                            "Invalid id format: %s!\n" \
+                            "" \
+                            e2c_validate_id
+
+                E2C_CFG_C_UID="$e2c_res"
+
+                e2c_ask_text "Provide group id (id -u):" \
+                            id -g \
+                            "Invalid id format: %s!\n" \
+                            "" \
+                            e2c_validate_id
+
+                E2C_CFG_C_GID="$e2c_res"
+                
+            fi
+
             e2c_info_bold "\n[Configure project extras]\n\n"
 
             e2c_ask_bool "Include Varnish service?"
@@ -1264,27 +1287,6 @@ e2c_init() {
                          e2c_validate_url_path
 
             E2C_CFG_ADMIN_URL="$e2c_res"
-
-            if [[ "$e2c_os" != "darwin" ]]
-            then
-
-                e2c_ask_text "Provide user id (id -u):" \
-                            "1000" \
-                            "Invalid id format: %s!\n" \
-                            "" \
-                            e2c_validate_id
-
-                E2C_CFG_C_UID="$e2c_res"
-
-                e2c_ask_text "Provide group id (id -u):" \
-                            "1000" \
-                            "Invalid id format: %s!\n" \
-                            "" \
-                            e2c_validate_id
-
-                E2C_CFG_C_GID="$e2c_res"
-                
-            fi
 
             e2c_save_project_env
         else
@@ -2246,7 +2248,7 @@ e2c_magento() {
         e2c_tty=1
     fi
 
-    docker exec -u app -${e2c_tty:+t}i "${E2C_CFG_DOMAIN_NAME}__php" bin/magento "$@"
+    docker exec -u app -${e2c_tty:+t}i "${E2C_CFG_DOMAIN_NAME}__php" php                                     bin/magento "$@"
 }
 
 e2c_magerun() {

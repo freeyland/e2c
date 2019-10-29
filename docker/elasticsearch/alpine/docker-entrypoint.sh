@@ -4,6 +4,14 @@ set -e
 
 umask 0002
 
+if [[ ! -z $E2C_CFG_C_GID ]]; then
+    groupmod -g $E2C_CFG_C_GID app
+fi
+
+if [[ ! -z $E2C_CFG_C_UID ]]; then
+    usermod -u $E2C_CFG_C_UID app
+fi
+
 declare -a es_opts
 
 while IFS="=" read -r env_key env_value

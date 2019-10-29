@@ -1,6 +1,8 @@
 FROM        alpine
 
 LABEL   maintainer="Emma2click,Frederick Eyland freeyland@gmail.com"
+ENV     E2C_CFG_C_UID=${E2C_CFG_C_UID}
+ENV     E2C_CFG_C_GID=${E2C_CFG_C_GID}
 
 ARG         ELASTICSEARCH_VERSION=${ELASTICSEARCH_VERSION:-6.8.1}
 ARG         ELASTICSEARCH_URL=${ELASTICSEARCH_URL:-'https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-${ELASTICSEARCH_VERSION}.tar.gz'}
