@@ -1195,11 +1195,12 @@ e2c_init() {
 
             e2c_set_opt_version "Redis" "${e2c_redis_versions[@]}"
 
-            if [[ "$e2c_os" == "darwin" ]]
+            if [[ "$e2c_os" != "darwin" ]]
             then
                 e2c_info_bold "\n[Configure linux]\n\n"
-                userid=${"id -u"}
-                groupid=${"id -g"}
+                
+                userid="$(id -u)"
+                groupid="$(id -g)"
 
                 e2c_ask_text "Provide user id (id -u):" \
                             "$userid" \
