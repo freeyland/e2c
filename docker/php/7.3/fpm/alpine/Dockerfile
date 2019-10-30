@@ -65,8 +65,8 @@ RUN     apk update && \
         rm -rf /tmp/* && \
         \
         \
-        addgroup -g $E2C_CFG_C_GID -S app && \
-        adduser -u $E2C_CFG_C_UID -S app -G app -h /var/www -s /bin/bash && \
+        addgroup -g 1000 -S app && \
+        adduser -u 1000 -S app -G app -h /var/www -s /bin/bash && \
         echo 'export PS1="\w $ "' > /var/www/.bashrc && \
         \
         \

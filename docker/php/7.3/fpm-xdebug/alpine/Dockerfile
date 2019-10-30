@@ -12,6 +12,7 @@ COPY    common/bin/* /usr/local/bin/
 
 RUN     apk update && \
 apk add --no-cache \
+shadow \
 php7 \
 php7-bcmath \
 php7-calendar \
