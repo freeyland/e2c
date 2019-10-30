@@ -1,9 +1,9 @@
 FROM    alpine:3.10
 
-LABEL   maintainer="Emma2click, Dmitry Shkoliar @shkoliar"
+LABEL   maintainer="Emma2Click, Frederick Eyland"
 
-ENV     E2C_CFG_C_UID=${E2C_CFG_C_UID}
-ENV     E2C_CFG_C_GID=${E2C_CFG_C_GID}
+ENV     E2C_CFG_C_UID=${E2C_CFG_C_UID:-1000}
+ENV     E2C_CFG_C_GID=${E2C_CFG_C_GID:-1000}
 
 COPY    common/conf-xdebug/php.ini /etc/php7/conf.d/
 COPY    common/conf-xdebug/php-fpm.conf /etc/php7/
