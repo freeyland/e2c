@@ -508,6 +508,7 @@ trap e2c_on_exit EXIT
 
 e2c_log="$e2c_global_dir"/log
 touch "$e2c_log"
+chmod 775 "$e2c_log"
 
 if [[ "$0" != "/usr/local/bin/e2c" ]]
 then

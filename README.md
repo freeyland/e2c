@@ -107,6 +107,8 @@ Simply follow the steps to configure the desired Docker Magento development envi
 
 <p align="center"><img src="assets/images/wizard.png" width="600" align="center" alt="Emma2click wizard" /></p>
 
+***Note that for Linux users, your local uid and gid will be requested. e2c will automatically fill them in by using id -u and id -g. This is because the files on you host and in docker should have the same access rights.
+
 ### Commandline project initialization mode
 
 If at least one command argument is defined, automated setup will be started. All undefined parameters will be set with default values.
@@ -165,6 +167,11 @@ ignore:
         - /vendor
         - node_modules
 
+### Linux socket issue => debug help
+
+Inside php container as root (so not e2c bash as this is as app)
+/usr/local/bin/docker-php-entrypoint   php-fpm --nodeamonize
+Check the errors
 
 ## XDEBUG
 [XDEBUG info](XDEBUG.md)

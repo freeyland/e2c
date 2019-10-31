@@ -12,7 +12,7 @@ COPY    common/conf/php.ini /usr/local/etc/php/
 COPY    common/conf/*.conf /usr/local/etc/
 COPY    common/bin/docker-host /usr/local/bin/
 
-RUN     apk add --no-cache busybox-suid \
+RUN     apk add --no-cache shadow busybox-suid \
     icu-dev freetype-dev libzip-dev libpng-dev libxml2-dev libedit-dev readline-dev \
     gettext-dev libxslt-dev libssh2-dev rabbitmq-c-dev libjpeg-turbo-dev libmcrypt-dev \
     bash lsof nodejs-npm supervisor && \
