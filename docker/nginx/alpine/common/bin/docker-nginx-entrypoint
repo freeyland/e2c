@@ -1,7 +1,11 @@
 #!/bin/sh
 set -e
 
-if [[ ! -z $E2C_CFG_C_UID ]]; then
-    usermod -u $E2C_CFG_C_UID app
-    echo "User changed $E2C_CFG_C_UID"
+if [[ ! -z $E2C_CFG_C_GID && id -g != $E2C_CFG_C_GID ]]; then
+    groupmod -g $E2C_CFG_C_GID app
 fi
+
+if [[ ! -z $E2C_CFG_C_UID && id -u != $E2C_CFG_C_UID ]]; then
+    usermod -u $E2C_CFG_C_UID app
+fi
+

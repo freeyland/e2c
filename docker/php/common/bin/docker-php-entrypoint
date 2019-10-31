@@ -1,6 +1,10 @@
 #!/bin/sh
 set -e
 
+if [[ ! -z $E2C_CFG_C_GID ]]; then
+    /usr/sbin/groupmod -g $E2C_CFG_C_GID app
+fi
+
 if [[ ! -z $E2C_CFG_C_UID ]]; then
     /usr/sbin/usermod -u $E2C_CFG_C_UID app
 fi
