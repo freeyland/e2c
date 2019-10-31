@@ -2,7 +2,7 @@ FROM    alpine:3.10
 
 LABEL   maintainer="Mage2click, Dmitry Shkoliar @shkoliar"
 
-ARG     PHP_VERSION=${PHP_VERSION:-"7.3.10-r0"}
+ARG     PHP_VERSION=${PHP_VERSION:-"7.3.11-r0"}
 
 ENV     COMPOSER_ALLOW_SUPERUSER=1
 
@@ -13,6 +13,7 @@ COPY    common/bin/* /usr/local/bin/
 
 RUN     apk update && \
         apk add --no-cache \
+            shadow \
             php7=${PHP_VERSION} \
             php7-bcmath=${PHP_VERSION} \
             php7-calendar=${PHP_VERSION} \
