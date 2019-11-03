@@ -177,4 +177,5 @@ Check the errors
 [XDEBUG info](XDEBUG.md)
 ## License
 
-[MIT](LICENSE)
+[MIT](https://github.com/mage2click/m2c/blob/master/LICENSE)
+
