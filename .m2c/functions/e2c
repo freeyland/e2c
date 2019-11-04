@@ -52,7 +52,7 @@ e2c_load_project_env() {
 
     export E2C_PROJECT_PATH="$e2c_project_dir"
 
-    f [[ "$m2c_os" != "darwin" ]]
+    if [[ "$m2c_os" != "darwin" ]]
     then
         export E2C_UID="$(id -u)"
         export E2C_GID="$(id -g)"
