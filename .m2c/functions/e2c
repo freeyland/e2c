@@ -73,7 +73,7 @@ e2c_load_project_defaults_env() {
 
 e2c_validate_domain() {
     local domain=$1
-    if [[ -n ${domain} && -n $(echo "$domain" | grep -$([[ "$m2c_os" == "darwin" ]] && echo "E" || echo "P") \
+    if [[ -n ${domain} && -n $(echo "$domain" | grep -$([[ "$e2c_os" == "darwin" ]] && echo "E" || echo "P") \
         '(^(?:[a-zA-Z0-9](?:(?:[a-zA-Z0-9\-]){0,61}[a-zA-Z0-9])?\.)+test$)') ]]
     then
         return 0
