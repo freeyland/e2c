@@ -3,16 +3,16 @@ version: "3.5"
 services:
   nginx:
     environment:
-      - E2C_CFG_C_UID=${E2C_CFG_C_UID}
-      - E2C_CFG_C_GID=${E2C_CFG_C_GID}
+      - UID=${E2C_UID}
+      - GID=${E2C_GID}
     volumes:
       - ./../../${E2C_CFG_MAGENTO_SRC}/:/var/www/html:ro
       - sock_data:/sock
 
   php:
     environment:
-      - E2C_CFG_C_UID=${E2C_CFG_C_UID}
-      - E2C_CFG_C_GID=${E2C_CFG_C_GID}
+      - UID=${E2C_UID}
+      - GID=${E2C_GID}
     volumes:
       - ~/.composer:/var/www/.composer
       - ~/.m2c/ssl/certs:/usr/share/ca-certificates/e2c:ro
@@ -21,6 +21,8 @@ services:
 
   xdebug:
     volumes:
+      - UID=${E2C_UID}
+      - GID=${E2C_GID}
       - ~/.composer:/var/www/.composer
       - ~/.m2c/ssl/certs:/usr/share/ca-certificates/e2c:ro
       - ./../../${E2C_CFG_MAGENTO_SRC}/:/var/www/html

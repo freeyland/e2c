@@ -52,6 +52,12 @@ e2c_load_project_env() {
 
     export E2C_PROJECT_PATH="$e2c_project_dir"
 
+    f [[ "$m2c_os" != "darwin" ]]
+    then
+        export E2C_UID="$(id -u)"
+        export E2C_GID="$(id -g)"
+    fi
+
     export E2C_TRAEFIK_IP="$(docker ps \
         --filter "label=com.docker.compose.project=e2c" \
         --filter "label=com.docker.compose.service=traefik" \
@@ -479,7 +485,7 @@ e2c_global_up() {
         e2c_loading
         (
             cd "$e2c_global_dir/docker/" && \
-            docker-compose --project-name e2c \
+            yes | docker-compose --project-name e2c \
                 --file docker-compose.yml up \
                 --detach --force-recreate --no-color --no-deps ${service[$i]}
         ) >"$e2c_log" 2>&1
@@ -2034,7 +2040,7 @@ e2c_local_project_up() {
     then
         (
             cd "$e2c_project_dir/.m2c/docker/" && \
-            docker-compose --project-name "${E2C_CFG_DOMAIN_NAME/.test/}" \
+            yes | docker-compose --project-name "${E2C_CFG_DOMAIN_NAME/.test/}" \
                 --file docker-compose.yml \
                 --file docker-compose.$([[ -n ${E2C_CFG_VARNISH} ]] && echo "varnish" || echo "nginx").yml \
                 ${E2C_CFG_PHPMYADMIN:+--file docker-compose.phpmyadmin.yml} \
