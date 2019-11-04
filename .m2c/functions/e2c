@@ -52,11 +52,11 @@ e2c_load_project_env() {
 
     export E2C_PROJECT_PATH="$e2c_project_dir"
 
-    if [[ "$m2c_os" != "darwin" ]]
-    then
-        export E2C_UID="$(id -u)"
-        export E2C_GID="$(id -g)"
-    fi
+    #if [[ "$m2c_os" != "darwin" ]]
+    #then
+    #    export E2C_UID="$(id -u)"
+    #    export E2C_GID="$(id -g)"
+    #fi
 
     export E2C_TRAEFIK_IP="$(docker ps \
         --filter "label=com.docker.compose.project=e2c" \
