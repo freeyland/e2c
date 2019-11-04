@@ -1369,7 +1369,7 @@ e2c_init() {
 
     e2c_local up
 
-    [[ "$m2c_os" == "darwin" ]] && m2c_push --all
+    [[ "$e2c_os" == "darwin" ]] && 2c_push --all
 
     if [[ -f "$e2c_magento_db_import" ]]
     then
