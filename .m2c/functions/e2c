@@ -915,7 +915,7 @@ e2c_help() {
 }
 
 e2c_init() {
-    local e2c_nginx_versions=("1.17" "1.16" "1.15" "1.14" "1.13" "1.12" "1.11" "1.10" "1.9" "1.8")
+    local e2c_nginx_versions=("1.17" "1.16" "1.15" "1.14" "1.13" "1.12")
     local e2c_php_versions=("7.3" "7.2" "7.1" "7.0" "5.6")
     local e2c_mariadb_versions=("10.3" "10.2" "10.1" "10.0")
     local e2c_redis_versions=("5.0" "4.0" "3.2")
@@ -1361,7 +1361,7 @@ e2c_init() {
     e2c_result 0
 
     e2c_local up
-    
+
     [[ "$m2c_os" == "darwin" ]] && m2c_push --all
 
     if [[ -f "$e2c_magento_db_import" ]]
