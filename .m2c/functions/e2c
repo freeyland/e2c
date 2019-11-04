@@ -98,7 +98,7 @@ e2c_validate_file() {
 
 e2c_validate_url_path() {
     local value=$1
-    [[ -n ${value} && -n $(echo "$value" | grep -$([[ "$m2c_os" == "darwin" ]] && echo "E" || echo "P") \
+    [[ -n ${value} && -n $(echo "$value" | grep -$([[ "$e2c_os" == "darwin" ]] && echo "E" || echo "P") \
         '(^(?:[a-zA-Z0-9](?:(?:[a-zA-Z0-9\-\_])[a-zA-Z0-9])?)+$)') ]] && return 0 || return 1
 }
 
