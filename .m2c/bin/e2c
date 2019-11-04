@@ -1,6 +1,6 @@
 #!/bin/bash
 
-declare -r e2c_version="0.3.2"
+declare -r e2c_version="0.4.1"
 declare -r e2c_os="$(uname -s | awk '{print tolower($0)}')"
 declare -r e2c_global_dir="$(echo ~/.m2c)"
 declare e2c_loading_pid=
@@ -310,7 +310,7 @@ e2c_requirements() {
     [[ ${test} -eq 0 ]] || pass=0
 
     test=0
-    e2c_msg "Ports 80, 443 and 53 availability check................................  "
+    e2c_msg "Ports 80, 443, 33060 and 53 availability check................................  "
     e2c_loading
 
     local ports=
@@ -334,6 +334,16 @@ e2c_requirements() {
                 ports="$ports, 443"
             fi
         fi
+
+        if lsof -PiTCP:33060 -sTCP:LISTEN -t >/dev/null 2>&1
+        then
+            if [[ -z ${ports} ]]
+            then
+                ports="TCP 33060"
+            else
+                ports="$ports, 33060"
+            fi
+        fi
     fi
 
     if [[ -z "$(docker ps \
@@ -352,7 +362,7 @@ e2c_requirements() {
     if [[ -n ${ports} ]]
     then
         test=1
-        echo "$ports already used by some other service.\n" >"$e2c_log"
+        echo "$ports already used by some other service(s).\n" >"$e2c_log"
     fi
 
     e2c_result ${test} 1

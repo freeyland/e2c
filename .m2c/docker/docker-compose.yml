@@ -4,6 +4,8 @@ services:
   emma2click:
     container_name: e2c.test__emma2click
     image: nginx:1.17-alpine
+    #ports:
+    #  - "127.0.0.1:33060:22/tcp"
     volumes:
       - ~/.m2c/www/default.conf:/etc/nginx/conf.d/default.conf
       - ~/.m2c/www/html/index.html:/usr/share/nginx/html/index.html

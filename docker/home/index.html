@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Emma2click</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Emma2click Docker Magento environment and toolset">
+    <meta name="author" content="Dmitry Shkoliar, Max Uroda">
+    <style>
+        body {
+            font-family: monospace;
+            font-size: 16px;
+            text-align: center;
+            color: #fff
+        }
+        
+        body::before {
+            content: ' ';
+            position: fixed;
+            left: 0;
+            bottom: 0;
+            z-index: -1;
+            width: 100%;
+            height: 100%;
+            background-color: #1044ff;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 900'%3E%3Cpolygon fill='%2325a5cc' points='957 450 539 900 1396 900'/%3E%3Cpolygon fill='%23286faa' points='957 450 872.9 900 1396 900'/%3E%3Cpolygon fill='%230096e0' points='-60 900 398 662 816 900'/%3E%3Cpolygon fill='%23005fa8' points='337 900 398 662 816 900'/%3E%3Cpolygon fill='%230085f3' points='1203 546 1552 900 876 900'/%3E%3Cpolygon fill='%23004ea4' points='1203 546 1552 900 1162 900'/%3E%3Cpolygon fill='%23006fff' points='641 695 886 900 367 900'/%3E%3Cpolygon fill='%23003c9e' points='587 900 641 695 886 900'/%3E%3Cpolygon fill='%230052ff' points='1710 900 1401 632 1096 900'/%3E%3Cpolygon fill='%23002894' points='1710 900 1401 632 1365 900'/%3E%3Cpolygon fill='%232217f4' points='1210 900 971 687 725 900'/%3E%3Cpolygon fill='%23110b88' points='943 900 1210 900 971 687'/%3E%3C/svg%3E");
+            backkground-attachment: fixed;
+            background-size: cover;
+        }
+        
+        p {
+            max-width: 600px;
+            padding: 20px
+        }
+        
+        h1 small {
+            font-weight: 400;
+            font-size: 16px
+        }
+        
+        a,
+        a:visited {
+            color: #fff
+        }
+        
+        a:hover {
+            font-weight: bold
+        }
+        
+        a.icon {
+            text-decoration: none
+        }
+        
+        a.icon+a.icon {
+            margin-left: 20px
+        }
+        
+        .wrapper {
+            display: flex;
+            min-height: 24em;
+            align-items: center;
+            flex-direction: column;
+            justify-content: center;
+            padding-top: 1em;
+        }
+        
+        .wrapper svg {
+            padding-top: 1em;
+        }
+        
+        .logo>img {
+            margin-top: 30px;
+            width: 200px
+        }
+        
+        .bottom {
+            margin-top: auto;
+        }
+        
+        .btn {
+            -moz-border-radius: 28px;
+            -webkit-border-radius: 28px;
+            border-radius: 28px;
+            border: 2px solid #ffffff;
+            background-color: transparent;
+            color: #ffffff;
+            display: inline-block;
+            cursor: pointer;
+            font-size: 17px;
+            padding: 16px 31px;
+            margin: 0 10px 30px;
+            text-decoration: none
+        }
+        
+        .btn:hover {
+            color: #0454ff;
+            background-color: #ffffff
+        }
+        
+        .btn:active {
+            position: relative;
+            top: 1px
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrapper">
+        <a class="logo" href="#">
+            <svg width="300" height="300" viewbox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+                <g fill="none" fill-rule="evenodd">
+                    <path
+                        d="M34.133 0h443.734C496.718 0 512 15.282 512 34.133v219.023H0V34.133C0 15.282 15.282 0 34.133 0z"
+                        fill="#05F" />
+                    <path
+                        d="M0 258.844h512v219.023C512 496.718 496.718 512 477.867 512H34.133C15.282 512 0 496.718 0 477.867V258.844z"
+                        fill="#4C88FF" />
+                    <path fill="#FFF" d="M0 253.156h512v11.378H0z" />
+                    <path
+                        d="M91.022 343.404l14.457-34.475c13.63 8.517 38 19.468 59.064 19.468 17.348 0 31.39-7.706 31.39-25.957 0-18.252-15.695-23.93-35.107-29.608-30.152-8.517-64.021-18.252-64.021-60.433 0-42.18 35.521-64.488 75.586-64.488 30.978 0 57.825 12.168 74.76 28.797l-23.544 28.39c-15.695-13.384-33.043-21.9-50.39-21.9-14.87 0-28.913 7.3-28.913 23.523 0 18.657 17.348 23.93 36.76 29.608 30.152 9.329 63.608 21.09 63.608 62.866 0 42.181-31.804 64.894-78.064 64.894-35.521 0-64.847-12.573-75.586-20.685zm268.446-195.493c40.287 0 65.364 20.28 65.364 56.377 0 62.46-78.52 70.572-116.34 70.977 1.644 26.364 16.855 51.915 51.798 51.915 24.255 0 41.932-10.95 51.798-17.845l15.21 32.041c-6.577 5.678-33.71 22.713-72.352 22.713-67.831 0-95.786-42.992-95.786-103.83 0-59.622 34.944-112.348 100.308-112.348zm19.791 59.332c0-14.613-9.555-23.302-23.887-23.302-31.85 0-46.978 30.806-48.172 60.033 21.498.395 72.06-6.32 72.06-36.73z"
+                        fill="#FFF" fill-rule="nonzero" />
+                </g>
+            </svg>
+        </a>
+        <h1>Emma2click - e2c<br><small>Docker Magento environment and toolset</small></h1>
+        <br>
+        <br>
+        <br>
+        <div class="links">
+            <a href="https://traefik.e2c.test" class="btn">Traefik</a>
+            <a href="https://portainer.e2c.test" class="btn">Portainer</a>
+            <a href="https://mailhog.e2c.test" class="btn">Mailhog</a>
+            <a href="https://dnsmasq.e2c.test" class="btn">Dnsmasq</a>
+        </div>
+        <br>
+        <br>
+        <br>
+        <br>
+        <br>
+        <br>
+        <p class="bottom">
+            <br>
+            <br>
+            <script>
+                document.write(new Date().getFullYear())
+            </script> &copy; Emma2click created by Frederick Eyland
+        </p>
+    </div>
+</body>
+
+</html>
