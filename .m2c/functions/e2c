@@ -67,8 +67,7 @@ e2c_load_project_defaults_env() {
 
 e2c_validate_domain() {
     local domain=$1
-     return 0
-    if [[ -n ${domain} && -n $(echo "$domain" | grep -E \
+    if [[ -n ${domain} && -n $(echo "$domain" | grep -$([[ "$m2c_os" == "darwin" ]] && echo "E" || echo "P") \
         '(^(?:[a-zA-Z0-9](?:(?:[a-zA-Z0-9\-]){0,61}[a-zA-Z0-9])?\.)+test$)') ]]
     then
         return 0
@@ -93,8 +92,7 @@ e2c_validate_file() {
 
 e2c_validate_url_path() {
     local value=$1
-    return 0
-    [[ -n ${value} && -n $(echo "$value" | grep -E \
+    [[ -n ${value} && -n $(echo "$value" | grep -$([[ "$m2c_os" == "darwin" ]] && echo "E" || echo "P") \
         '(^(?:[a-zA-Z0-9](?:(?:[a-zA-Z0-9\-\_])[a-zA-Z0-9])?)+$)') ]] && return 0 || return 1
 }
 
@@ -1363,10 +1361,9 @@ e2c_init() {
     e2c_result 0
 
     e2c_local up
-    if [[ "$e2c_os" == "darwin" ]]
-    then
-        e2c_push --all
-    fi
+    
+    [[ "$m2c_os" == "darwin" ]] && m2c_push --all
+
     if [[ -f "$e2c_magento_db_import" ]]
     then
         e2c_db_import "$e2c_magento_db_import"

@@ -24,10 +24,8 @@ services:
       - --docker.network=e2c
       - --docker.exposedByDefault=false
     ports:
-      # The HTTP port
-      - 80:80
-      # The HTTPS port
-      - 443:443
+      - "127.0.0.1:80:80"
+      - "127.0.0.1:443:443"
     volumes:
       - ~/.m2c/traefik/traefik.toml:/etc/traefik/traefik.toml:ro
       - ~/.m2c/ssl/certs/e2c.crt:/etc/ssl/certs/e2c.crt:ro
@@ -66,7 +64,7 @@ services:
     container_name: e2c.test__dnsmasq
     image: jpillora/dnsmasq:1.1
     ports:
-      - 53:53/udp
+      - "127.0.0.1:53:53/udp"
     volumes:
       - ~/.m2c/dnsmasq/dnsmasq.conf:/etc/dnsmasq.conf
     labels:
