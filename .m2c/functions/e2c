@@ -2254,7 +2254,7 @@ e2c_magento() {
         e2c_tty=1
     fi
 
-    docker exec -u app -${e2c_tty:+t}i "${E2C_CFG_DOMAIN_NAME}__php" php                                     bin/magento "$@"
+    docker exec -u app -${e2c_tty:+t}i "${E2C_CFG_DOMAIN_NAME}__php" php bin/magento $@
 }
 
 e2c_magerun() {
