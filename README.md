@@ -62,7 +62,7 @@ Toolset local homepage with links to all tools listed above is available at: <a 
 
 - **DNSMasq:** is a lightweight, easy to configure, DNS forwarder and DHCP server. It is designed to provide DNS and optionally, DHCP, to a small network. It can serve the names of local machines which are not in the global DNS. The DHCP server integrates with the DNS server and allows machines with DHCP-allocated addresses to appear in the DNS with names configured either in each host or in a central configuration file. Dnsmasq supports static and dynamic DHCP leases and BOOTP/TFTP for network booting of diskless machines.
 
-**All docker images with services listed above must be active.** These services are configured to start automatically and should not be stopped. Without active Traefik and Dnsmasq, e2c backed projects can't work properly. This option can be desable with: 
+**All docker images with services listed above must be active.** These services are configured to start automatically and should not be stopped. Without active Traefik and Dnsmasq, e2c backed projects can't work properly. This option can be disabled with:
 
 > e2c global autostart off
 
@@ -174,7 +174,13 @@ Inside php container as root (so not e2c bash as this is as app)
 Check the errors
 
 ## XDEBUG
+
 [XDEBUG info](XDEBUG.md)
+
+## CONNECTING TO A DATABASE
+
+[DATABASE info](DATABASE.md) 
+
 ## License
 
 [MIT](https://github.com/mage2click/m2c/blob/master/LICENSE)

@@ -1,0 +1,9 @@
+HOME="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+
+docker build -t "freeyland/e2c:home" "${HOME}/alpine/"
+
+rm -rf "${HOME}/.docker"
+
+echo
+echo "docker push \"freeyland/e2c:home\""
+echo "docker rmi -f \"freeyland/e2c:home\"" 
