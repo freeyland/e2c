@@ -19,7 +19,8 @@ Emma2click toolset is a system-wide command-line tool for creating and managing 
     - [Interactive project initialization mode](#interactive-project-initialization-mode)
     - [Commandline project initialization mode](#commandline-project-initialization-mode)
 - [XDEBUG](XDEBUG.md)
-- [DATABASE CONNECTION](DATABASE.md)
+- [Database connection](DATABASE.md)
+- [Linux info](LINUX.md)
 - [Remarks](#Remarks)
 - [License](#license)
 
@@ -145,7 +146,7 @@ https://markshust.com/2018/01/30/performance-tuning-docker-mac/
 
 [DATABASE info](DATABASE.md)
 
-## CONNECTING TO A DATABASE
+## Ubuntu DNS changes
 
 [Linux info](LINUX.md)
 
