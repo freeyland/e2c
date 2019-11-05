@@ -26,9 +26,9 @@ Emma2click toolset is a system-wide command-line tool for creating and managing 
 
 ## Prerequisites
 
-This setup assumes you are running Docker on a computer with at least 6GB of allocated RAM, a dual-core, and an SSD hard drive. 
- 
-This configuration has been tested on macOS. Linux based systems still require testing. Any testing are welcomed!
+This setup assumes you are running Docker on a computer with at least 6GB of allocated RAM, a dual-core, and an SSD hard drive.
+
+This configuration has been tested on macOS and  Ubuntu.
 
 ## Installation
 

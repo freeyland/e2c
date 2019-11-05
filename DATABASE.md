@@ -32,9 +32,10 @@ General and SSH/SSL tabs must be configured. The proxy password field must remai
 
 ### Navicat
 
-
-
-
 <p align="center"><img src="assets/images/database-navicat-ssh.png" width="600" align="center" alt="Emma2click Database phpstorm general" /></p>
 
 <p align="center"><img src="assets/images/database-navicat-general.png" width="600" align="center" alt="Emma2click Database Navicat general" /></p>
+
+### Mysql Workbench
+
+<p align="center"><img src="assets/images/database-workbench.png" width="600" align="center" alt="Emma2click Database Workbench" /></p>
