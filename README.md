@@ -19,6 +19,8 @@ Emma2click toolset is a system-wide command-line tool for creating and managing 
     - [Interactive project initialization mode](#interactive-project-initialization-mode)
     - [Commandline project initialization mode](#commandline-project-initialization-mode)
 - [XDEBUG](XDEBUG.md)
+- [DATABASE CONNECTION](DATABASE.md)
+- [Remarks](#Remarks)
 - [License](#license)
 
 ## Prerequisites
@@ -133,6 +135,20 @@ https://markshust.com/2018/01/30/performance-tuning-docker-mac/
 
 <p align="center"><img src="assets/images/docker-settings.png" width="600" align="center" alt="Docker settings" /></p>
 
+
+
+## XDEBUG
+
+[XDEBUG info](XDEBUG.md)
+
+## CONNECTING TO A DATABASE
+
+[DATABASE info](DATABASE.md)
+
+## CONNECTING TO A DATABASE
+
+[Linux info](LINUX.md)
+
 ## Remarks
 
 ### Uninstall
@@ -171,14 +187,6 @@ ignore:
 Inside php container as root (so not e2c bash as this is as app)
 /usr/local/bin/docker-php-entrypoint   php-fpm --nodeamonize
 Check the errors
-
-## XDEBUG
-
-[XDEBUG info](XDEBUG.md)
-
-## CONNECTING TO A DATABASE
-
-[DATABASE info](DATABASE.md) 
 
 ## License
 
