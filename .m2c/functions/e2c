@@ -1362,7 +1362,7 @@ e2c_init() {
     then
         e2c_info_bold "\n[Downloading magento sources via composer]\n\n"
 
-        if [[ "$E2C_CFG_MAGENTO_EDITION" == "EE" ]]
+        if [[ ${E2C_CFG_MAGENTO_EDITION} == "EE" ]]
         then
             edition="project-enterprise-edition"
         else
