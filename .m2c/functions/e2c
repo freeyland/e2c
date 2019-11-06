@@ -926,6 +926,7 @@ e2c_init() {
     local e2c_php_versions=("7.3" "7.2" "7.1" "7.0" "5.6")
     local e2c_mariadb_versions=("10.3" "10.2" "10.1" "10.0")
     local e2c_redis_versions=("5.0" "4.0" "3.2")
+    local e2c_magento_editions=("CE" "EE")
     local e2c_magento_versions=("2.3.3" "2.3.2" "2.3.1" "2.3.0" \
             "2.2.9" "2.2.8" "2.2.7" "2.2.6" "2.2.5" "2.2.4" "2.2.3" "2.2.2" "2.2.1" "2.2.0" \
             "2.1.18" "2.1.17" "2.1.16" "2.1.15" "2.1.14" "2.1.13" "2.1.12" "2.1.11" "2.1.10" \
@@ -1280,6 +1281,10 @@ e2c_init() {
                 e2c_set_opt_version "Magento" "${e2c_magento_versions[@]}"
             fi
             
+            if [[ -z ${E2C_CFG_MAGENTO_EDITION} ]]
+            then
+                e2c_set_opt_version "Magento edition (CE or EE)" "${e2c_magento_editions[@]}"
+            fi
 
             if [[ "${E2C_CFG_MAGENTO:0:1}" == "2" ]]
             then
@@ -1344,23 +1349,6 @@ e2c_init() {
     yes | cp -rf "$e2c_global_dir"/local/mysql/custom.cnf "$e2c_project_dir"/.m2c/mysql/custom.cnf
     rm -rf "$e2c_project_dir"/.m2c/mutagen/mutagen.yml.lock >/dev/null 2>&1
 
-    if [[ -z ${e2c_magento_exists} ]]
-    then
-        e2c_info_bold "\n[Downloading magento sources]\n\n"
-
-        url="http://pubfiles.nexcess.net/magento/ce-packages/magento$([[ "${E2C_CFG_MAGENTO:0:1}" == "2" ]] && \
-            echo "2")$([[ -n ${e2c_magento_sample_data} && "${E2C_CFG_MAGENTO:0:1}" == "2" ]] && \
-            echo "-with-samples")-$E2C_CFG_MAGENTO.tar.gz"
-
-        if [[ -n ${E2C_CFG_MAGENTO_SRC} ]]
-        then
-            mkdir -p "$e2c_project_dir/$E2C_CFG_MAGENTO_SRC"
-            curl -L "$url" | tar xzf - -o -C "$e2c_project_dir/$E2C_CFG_MAGENTO_SRC"
-        else
-            curl -L "$url" | tar xzf - -o -C "$e2c_project_dir"
-        fi
-    fi
-
     e2c_info_bold "\n[Cleanup]\n\n"
     e2c_msg "Cleanup before creating containers.....................................  "
     e2c_loading
@@ -1369,7 +1357,59 @@ e2c_init() {
 
     e2c_local up
 
-    [[ "$e2c_os" == "darwin" ]] && e2c_push --all
+
+    if [[ -z ${e2c_magento_exists} ]]
+    then
+        e2c_info_bold "\n[Downloading magento sources via composer]\n\n"
+
+        if [[ $E2C_CFG_MAGENTO_EDITION == "EE"]]
+        then
+            edition="project-enterprise-edition"
+        else
+            edition="project-community-edition"
+        fi
+        
+        if [[ -n ${E2C_CFG_MAGENTO_SRC} ]]
+        then
+            e2c_cli notty "mkdir -p $E2C_CFG_MAGENTO_SRC"
+            e2c_msg "Composer install magento ..............................................  "
+            e2c_loading
+            e2c_composer create-project --repository=https://repo.magento.com magento/$edition=$E2C_CFG_MAGENTO . >"$e2c_log" 2>&1
+            e2c_result $?
+            e2c_msg "Composer install hirak/prestissimo.....................................  "
+            e2c_loading
+            e2c_composer notty global require hirak/prestissimo >"$e2c_log" 2>&1
+            e2c_result $?
+            e2c_msg "Composer install cweagans/composer-patches.............................  "
+            e2c_loading
+            e2c_composer notty require cweagans/composer-patches >"$e2c_log" 2>&1
+            e2c_result $?
+            e2c_msg "Composer install studioemma/magento2-theme-optimus.....................  "
+            e2c_loading
+            e2c_composer notty require studioemma/magento2-theme-optimus >"$e2c_log" 2>&1
+            e2c_result $?
+        else
+            e2c_msg "Composer install magento ..............................................  "
+            e2c_loading
+            e2c_composer create-project --repository=https://repo.magento.com magento/$edition=$E2C_CFG_MAGENTO . >"$e2c_log" 2>&1
+            e2c_result $?
+            e2c_msg "Composer install hirak/prestissimo.....................................  "
+            e2c_loading
+            e2c_composer notty global require hirak/prestissimo >"$e2c_log" 2>&1
+            e2c_result $?
+            e2c_msg "Composer install cweagans/composer-patches.............................  "
+            e2c_loading
+            e2c_composer notty require cweagans/composer-patches >"$e2c_log" 2>&1
+            e2c_result $?
+            e2c_msg "Composer install studioemma/magento2-theme-optimus.....................  "
+            e2c_loading
+            e2c_composer notty require studioemma/magento2-theme-optimus >"$e2c_log" 2>&1
+            e2c_result $?
+        fi
+    fi
+
+
+    [[ "$e2c_os" == "darwin" ]] && e2c_pull --all
 
     if [[ -f "$e2c_magento_db_import" ]]
     then

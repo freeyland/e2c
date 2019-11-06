@@ -66,7 +66,7 @@ adduser -u 1000 -S app -G app -h /var/www -s /bin/bash && \
 \
 mkdir -p /var/www/html /var/www/.config /sock && \
 touch /var/spool/cron/crontabs/app && \
-chown -R app:app /var/www/html /var/www/.config \
+chown -R app:app /var/www/ /var/www/.config \
 /etc/php7/conf.d /sock /var/log && \
 chmod +x /usr/local/bin/docker-host /usr/local/bin/docker-php-entrypoint && \
 \
