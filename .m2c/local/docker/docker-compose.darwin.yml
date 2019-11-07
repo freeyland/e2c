@@ -8,6 +8,9 @@ services:
       - sock_data:/sock
 
   php:
+    environment:
+      - E2C_CFG_C_UID=${E2C_CFG_C_UID}
+      - E2C_CFG_C_GID=${E2C_CFG_C_GID}
     volumes:
       - ~/.composer:/var/www/.composer:delegated
       - ~/.m2c/ssl/certs:/usr/share/ca-certificates/e2c:ro
@@ -15,6 +18,9 @@ services:
       - sock_data:/sock
 
   xdebug:
+  environment:
+      - E2C_CFG_C_UID=${E2C_CFG_C_UID}
+      - E2C_CFG_C_GID=${E2C_CFG_C_GID}
     volumes:
       - ~/.composer:/var/www/.composer:delegated
       - ~/.m2c/ssl/certs:/usr/share/ca-certificates/e2c:ro

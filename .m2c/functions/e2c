@@ -1211,8 +1211,10 @@ e2c_init() {
 
                 E2C_CFG_C_UID="$userid"
                 E2C_CFG_C_GID="$groupid"
+            else
+                E2C_CFG_C_UID="$userid"
             fi
-            
+
             e2c_info_bold "\n[Configure project extras]\n\n"
 
             e2c_ask_bool "Include Varnish service?"

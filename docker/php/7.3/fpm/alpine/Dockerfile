@@ -72,7 +72,7 @@ RUN     apk update && \
         \
         mkdir -p /var/www/html /var/www/.config /var/www/.npm /sock && \
         touch /var/spool/cron/crontabs/app && \
-        chown -R app:app /var/www /var/www/.bashrc /var/www/.config \
+        chown -R app:app /var/www/html /var/www/.bashrc /var/www/.config \
             /var/www/.npm /etc/php7/conf.d /sock /var/log \
             /usr/local/bin/n98-magerun2.phar && \
         chmod +x /usr/local/bin/docker-host /usr/local/bin/docker-php-entrypoint && \
