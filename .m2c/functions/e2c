@@ -1407,7 +1407,7 @@ e2c_init() {
             e2c_result $?
             e2c_msg "Copy temp folder to /var/www/html/.....................................  "
             e2c_loading
-            e2c_cli notty cp temp/. /var/www/html
+            e2c_cli notty cp -r temp/. /var/www/html
             e2c_result $?
             e2c_msg "Remove temp folder ....................................................  "            
             e2c_loading
