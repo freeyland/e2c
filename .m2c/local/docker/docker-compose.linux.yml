@@ -20,9 +20,10 @@ services:
       - sock_data:/sock
 
   xdebug:
-    volumes:
+    environment:
       - E2C_CFG_C_UID=${E2C_CFG_C_UID}
       - E2C_CFG_C_GID=${E2C_CFG_C_GID}
+    volumes:
       - ~/.composer:/var/www/.composer
       - ~/.m2c/ssl/certs:/usr/share/ca-certificates/e2c:ro
       - ./../../${E2C_CFG_MAGENTO_SRC}/:/var/www/html

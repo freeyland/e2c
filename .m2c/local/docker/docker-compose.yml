@@ -5,6 +5,9 @@ services:
     container_name: ${E2C_CFG_DOMAIN_NAME}__php
     hostname: ${E2C_CFG_DOMAIN_NAME}__php
     image: freeyland/e2c:php-fpm-${E2C_CFG_PHP:-7.3}-alpine
+    environment:
+      - E2C_CFG_C_UID=${E2C_CFG_C_UID}
+      - E2C_CFG_C_GID=${E2C_CFG_C_GID}
     extra_hosts:
       - ${E2C_CFG_DOMAIN_NAME}:${E2C_TRAEFIK_IP:-0.0.0.0}
     depends_on:
@@ -22,6 +25,9 @@ services:
     container_name: ${E2C_CFG_DOMAIN_NAME}__xdebug
     hostname: ${E2C_CFG_DOMAIN_NAME}__xdebug
     image: freeyland/e2c:php-fpm-${E2C_CFG_PHP:-7.3}-xdebug-alpine
+    environment:
+      - E2C_CFG_C_UID=${E2C_CFG_C_UID}
+      - E2C_CFG_C_GID=${E2C_CFG_C_GID}
     extra_hosts:
       - ${E2C_CFG_DOMAIN_NAME}:${E2C_TRAEFIK_IP:-0.0.0.0}
     environment:

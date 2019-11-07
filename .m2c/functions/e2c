@@ -1207,21 +1207,8 @@ e2c_init() {
             userid="$(id -u)"
             groupid="$(id -g)"
 
-            e2c_ask_text "Provide user id (id -u):" \
-                        "$userid" \
-                        "Invalid id format: %s!\n" \
-                        "" \
-                        e2c_validate_id
-
-            E2C_CFG_C_UID="$e2c_res"
-
-            e2c_ask_text "Provide group id (id -u):" \
-                        "$groupid" \
-                        "Invalid id format: %s!\n" \
-                        "" \
-                        e2c_validate_id
-
-            E2C_CFG_C_GID="$e2c_res"
+            E2C_CFG_C_UID="$userid"
+            E2C_CFG_C_GID="$groupid"
 
             e2c_info_bold "\n[Configure project extras]\n\n"
 
