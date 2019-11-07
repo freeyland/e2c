@@ -1204,12 +1204,15 @@ e2c_init() {
 
             e2c_info_bold "\n[Configure uid and gid]\n\n"
             
-            userid="$(id -u)"
-            groupid="$(id -g)"
+            if [[ "$e2c_os" != "darwin" ]]
+            then
+                userid="$(id -u)"
+                groupid="$(id -g)"
 
-            E2C_CFG_C_UID="$userid"
-            E2C_CFG_C_GID="$groupid"
-
+                E2C_CFG_C_UID="$userid"
+                E2C_CFG_C_GID="$groupid"
+            fi
+            
             e2c_info_bold "\n[Configure project extras]\n\n"
 
             e2c_ask_bool "Include Varnish service?"
