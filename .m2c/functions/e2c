@@ -1371,23 +1371,7 @@ e2c_init() {
         
         if [[ -n ${E2C_CFG_MAGENTO_SRC} ]]
         then
-            e2c_cli notty mkdir -p $E2C_CFG_MAGENTO_SRC
-            e2c_msg "Composer install magento in temp folder................................  "
-            e2c_loading
-            e2c_composer create-project --repository=https://repo.magento.com magento/$edition=$E2C_CFG_MAGENTO ./temp >"$e2c_log" 2>&1
-            e2c_result $?
-            e2c_msg "Mv temp folder.........................................................  "
-            e2c_loading
-            e2c_cli notty cp temp/. /var/www/html
-            e2c_cli notty rm -Rf temp >"$e2c_log" 2>&1
-            e2c_result $?
-            e2c_msg "Composer install hirak/prestissim
-            e2c_composer notty global require hirak/prestissimo >"$e2c_log" 2>&1
-            e2c_result $?
-            e2c_msg "Composer install cweagans/composer-patches.............................  "
-            e2c_loading
-            e2c_composer notty require cweagans/composer-patches >"$e2c_log" 2>&1
-            e2c_result $?
+           
             e2c_msg "Composer install studioemma/magento2-theme-optimus.....................  "
             e2c_loading
             e2c_composer notty require studioemma/magento2-theme-optimus >"$e2c_log" 2>&1
