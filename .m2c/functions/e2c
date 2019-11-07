@@ -1381,6 +1381,18 @@ e2c_init() {
             e2c_loading
             e2c_composer create-project --repository=https://repo.magento.com magento/$edition=$E2C_CFG_MAGENTO ./temp >"$e2c_log" 2>&1
             e2c_result $?
+            e2c_msg "Copy temp folder to /var/www/html/.....................................  "
+            e2c_loading
+            e2c_cli notty cp temp/. /var/www/html
+            e2c_result $?
+            e2c_msg "Remove temp folder ....................................................  "            
+            e2c_loading
+            e2c_cli notty rm -Rf temp >"$e2c_log" 2>&1
+            e2c_result $?
+            e2c_msg "Composer install freeyland/magento2-replaces...........................  "
+            e2c_loading
+            e2c_composer notty require freeyland/magento2-replaces >"$e2c_log" 2>&1
+            e2c_result $?
             
         fi
     fi
