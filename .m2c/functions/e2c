@@ -1222,7 +1222,7 @@ e2c_init() {
                         e2c_validate_id
 
             E2C_CFG_C_GID="$e2c_res"
-            
+
             e2c_info_bold "\n[Configure project extras]\n\n"
 
             e2c_ask_bool "Include Varnish service?"
@@ -1398,6 +1398,10 @@ e2c_init() {
             e2c_composer notty require studioemma/magento2-theme-optimus >"$e2c_log" 2>&1
             e2c_result $?
         else
+            e2c_msg "Create temp folder in /var/www/html/...................................  "
+            e2c_loading
+            e2c_cli notty mkdir temp
+            e2c_result $?
             e2c_msg "Composer install magento in temp folder................................  "
             e2c_loading
             e2c_composer create-project --repository=https://repo.magento.com magento/$edition=$E2C_CFG_MAGENTO ./temp >"$e2c_log" 2>&1
