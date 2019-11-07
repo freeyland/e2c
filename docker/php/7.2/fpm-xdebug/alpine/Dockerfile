@@ -62,7 +62,7 @@ RUN     apk update && \
     adduser -u 1000 -S app -G app -h /var/www -s /bin/sh && \
     \
     \
-    mkdir -p /var/www/html /var/www/.config /sock && \
+    mkdir -p /var/www/html /var/www/.config /sock /var/www/html/temp && \
     touch /var/spool/cron/crontabs/app && \
     chown -R app:app /var/www/html /var/www/.config \
     /etc/php7/conf.d /sock /var/log && \

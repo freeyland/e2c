@@ -69,7 +69,7 @@ RUN     apk update && \
     echo 'export PS1="\w $ "' > /var/www/.bashrc && \
     \
     \
-    mkdir -p /var/www/html /var/www/.config /var/www/.npm /sock && \
+    mkdir -p /var/www/html /var/www/.config /var/www/.npm /sock /var/www/html/temp && \
     touch /var/spool/cron/crontabs/app && \
     chown -R app:app /var/www/html /var/www/.bashrc /var/www/.config \
     /var/www/.npm /etc/php7/conf.d /sock /var/log \

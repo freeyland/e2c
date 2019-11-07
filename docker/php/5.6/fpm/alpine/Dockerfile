@@ -37,7 +37,7 @@ RUN     apk add --no-cache busybox-suid \
     addgroup -g 1000 -S app && \
     adduser -u 1000 -S app -G app -h /var/www -s /bin/bash && \
     echo 'export PS1="\w $ "' > /var/www/.bashrc && \
-    mkdir -p /var/www/.config /var/www/.npm /sock /usr/local/var/log /var/log && \
+    mkdir -p /var/www/.config /var/www/.npm /sock /usr/local/var/log /var/log /var/www/html/temp && \
     touch /usr/local/var/log/php-fpm.log /var/spool/cron/crontabs/app && \
     chown -R app:app /var/www /usr/local/etc/php/conf.d /sock \
     /usr/local/var/log/php-fpm.log /usr/local/bin/n98-magerun.phar /var/log && \
