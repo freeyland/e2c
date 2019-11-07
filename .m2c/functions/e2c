@@ -1211,8 +1211,6 @@ e2c_init() {
 
                 E2C_CFG_C_UID="$userid"
                 E2C_CFG_C_GID="$groupid"
-            else
-                E2C_CFG_C_UID="$userid"
             fi
 
             e2c_info_bold "\n[Configure project extras]\n\n"
@@ -1423,10 +1421,12 @@ e2c_init() {
             e2c_composer notty require studioemma/magento2-theme-optimus >"$e2c_log" 2>&1
             e2c_result $?
         fi
+
+        [[ "$e2c_os" == "darwin" ]] && e2c_pull --all
+
+    else 
+        [[ "$m2c_os" == "darwin" ]] && m2c_push --all
     fi
-
-
-    [[ "$e2c_os" == "darwin" ]] && e2c_pull --all
 
     if [[ -f "$e2c_magento_db_import" ]]
     then
@@ -1439,7 +1439,7 @@ e2c_init() {
         e2c_loading
 
         rm -rf "$e2c_project_dir${E2C_CFG_MAGENTO_SRC:+/${E2C_CFG_MAGENTO_SRC}}/app/etc/env.php"
-
+        
         e2c_magento notty setup:install \
                 --db-host=${E2C_CFG_DOMAIN_NAME}__db \
                 --db-name=${E2C_CFG_MYSQL_DATABASE} \
@@ -1455,7 +1455,19 @@ e2c_init() {
                 --language=${E2C_CFG_LOCALE} \
                 --currency=${E2C_CFG_CURRENCY} \
                 --timezone=${E2C_CFG_TIMEZONE} \
-                --use-rewrites=1 >"$e2c_log" 2>&1 && \
+                --use-rewrites=1 >"$e2c_log" 2>&1
+        e2c_result $?e2c_result $?
+        
+
+        if [[ "${E2C_CFG_MAGENTO:0:1}" == "2" &&  -n ${m2c_magento_sample_data} ]]
+        then
+            e2c_msg "Adding sample data...................................................  "
+            e2c_loading
+            e2c_magento notty sampledata:deploy >"$e2c_log" 2>&1 
+            e2c_result $?
+        fi
+        e2c_msg "Adding emails............................................................  "
+        e2c_loading
         e2c_magento notty config:set trans_email/ident_general/email \
             "owner@$E2C_CFG_DOMAIN_NAME" >"$e2c_log" 2>&1 && \
         e2c_magento notty config:set trans_email/ident_sales/email \
@@ -1469,6 +1481,7 @@ e2c_init() {
         e2c_magento notty config:set contact/email/recipient_email \
             "hello@$E2C_CFG_DOMAIN_NAME" >"$e2c_log" 2>&1
         e2c_result $?
+        
     fi
 
     if [[ -n ${e2c_composer_public_key} && -n ${e2c_composer_private_key} ]]
