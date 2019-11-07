@@ -1201,31 +1201,28 @@ e2c_init() {
 
             e2c_set_opt_version "Redis" "${e2c_redis_versions[@]}"
 
-            if [[ "$e2c_os" != "darwin" ]]
-            then
-                e2c_info_bold "\n[Configure linux]\n\n"
-                
-                userid="$(id -u)"
-                groupid="$(id -g)"
 
-                e2c_ask_text "Provide user id (id -u):" \
-                            "$userid" \
-                            "Invalid id format: %s!\n" \
-                            "" \
-                            e2c_validate_id
+            e2c_info_bold "\n[Configure uid and gid]\n\n"
+            
+            userid="$(id -u)"
+            groupid="$(id -g)"
 
-                E2C_CFG_C_UID="$e2c_res"
+            e2c_ask_text "Provide user id (id -u):" \
+                        "$userid" \
+                        "Invalid id format: %s!\n" \
+                        "" \
+                        e2c_validate_id
 
-                e2c_ask_text "Provide group id (id -u):" \
-                            "$groupid" \
-                            "Invalid id format: %s!\n" \
-                            "" \
-                            e2c_validate_id
+            E2C_CFG_C_UID="$e2c_res"
 
-                E2C_CFG_C_GID="$e2c_res"
-                
-            fi
+            e2c_ask_text "Provide group id (id -u):" \
+                        "$groupid" \
+                        "Invalid id format: %s!\n" \
+                        "" \
+                        e2c_validate_id
 
+            E2C_CFG_C_GID="$e2c_res"
+            
             e2c_info_bold "\n[Configure project extras]\n\n"
 
             e2c_ask_bool "Include Varnish service?"
