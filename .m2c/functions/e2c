@@ -1393,7 +1393,18 @@ e2c_init() {
             e2c_loading
             e2c_composer notty require freeyland/magento2-replaces >"$e2c_log" 2>&1
             e2c_result $?
-            
+            e2c_msg "Composer install hirak/prestissimo.....................................  "
+            e2c_loading
+            e2c_composer notty global require hirak/prestissimo >"$e2c_log" 2>&1
+            e2c_result $?
+            e2c_msg "Composer install cweagans/composer-patches.............................  "
+            e2c_loading
+            e2c_composer notty require cweagans/composer-patches >"$e2c_log" 2>&1
+            e2c_result $?
+            e2c_msg "Composer install studioemma/magento2-theme-optimus.....................  "
+            e2c_loading
+            e2c_composer notty require studioemma/magento2-theme-optimus >"$e2c_log" 2>&1
+            e2c_result $?
         fi
     fi
 
