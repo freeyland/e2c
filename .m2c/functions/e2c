@@ -1421,11 +1421,11 @@ e2c_init() {
             e2c_composer notty require studioemma/magento2-theme-optimus >"$e2c_log" 2>&1
             e2c_result $?
         fi
-
+    
         [[ "$e2c_os" == "darwin" ]] && e2c_pull --all
 
     else 
-        [[ "$m2c_os" == "darwin" ]] && m2c_push --all
+        [[ "$m2c_os" == "darwin" ]] && e2c_push --all
     fi
 
     if [[ -f "$e2c_magento_db_import" ]]
@@ -1458,7 +1458,6 @@ e2c_init() {
                 --use-rewrites=1 >"$e2c_log" 2>&1
         e2c_result $?e2c_result $?
         
-
         if [[ "${E2C_CFG_MAGENTO:0:1}" == "2" &&  -n ${m2c_magento_sample_data} ]]
         then
             e2c_msg "Adding sample data...................................................  "
