@@ -18,7 +18,7 @@ services:
       - sock_data:/sock
 
   xdebug:
-  environment:
+    environment:
       - E2C_CFG_C_UID=${E2C_CFG_C_UID}
       - E2C_CFG_C_GID=${E2C_CFG_C_GID}
     volumes:
