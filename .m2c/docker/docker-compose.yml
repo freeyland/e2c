@@ -4,7 +4,7 @@ services:
 
   emma2click:
     container_name: e2c.test__emma2click
-    image: emma2click/e2c:home
+    image: freeyland/e2c:home
     ports:
       - "127.0.0.1:33060:22/tcp"
     labels:
