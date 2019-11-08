@@ -1456,7 +1456,7 @@ e2c_init() {
             e2c_msg "Remove var/composer_home/auth.json and make link auth.json in home...  "
             e2c_loading
             e2c_cli notty rm -f var/composer_home/auth.json >"$e2c_log" 2>&1 && \
-            e2c_cli notty ln -s ~/.composer/auth.json var/composer_home/ >"$e2c_log" 2>&1
+            e2c_cli notty cp ~/.composer/auth.json var/composer_home/ >"$e2c_log" 2>&1
             e2c_result $?
             e2c_msg "Adding sample data.....................................................  "
             e2c_loading
