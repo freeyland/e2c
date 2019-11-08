@@ -1,70 +1,80 @@
 version: "3.5"
 
 services:
-  php:
-    container_name: ${E2C_CFG_DOMAIN_NAME}__php
-    hostname: ${E2C_CFG_DOMAIN_NAME}__php
-    image: freeyland/e2c:php-fpm-${E2C_CFG_PHP:-7.3}-alpine
-    environment:
-      - E2C_CFG_C_UID=${E2C_CFG_C_UID}
-      - E2C_CFG_C_GID=${E2C_CFG_C_GID}
-    extra_hosts:
-      - ${E2C_CFG_DOMAIN_NAME}:${E2C_TRAEFIK_IP:-0.0.0.0}
-    depends_on:
-      - db
+
+  emma2click:
+    container_name: e2c.test__emma2click
+    image: emma2click/e2c:home
+    ports:
+      - "127.0.0.1:33060:22/tcp"
     labels:
-      - e2c.project.path=${E2C_PROJECT_PATH}
-    volumes:
-      - $HOME/.composer/auth.json:/var/www/.composer/auth.json
-      - $HOME/.ssh:/var/www/.ssh
-    networks:
-      - default
-      - e2c
+      - traefik.passHostHeader=true
+      - traefik.enable=true
+      - traefik.frontend.rule=Host:e2c.test
+      - traefik.port=8080
+    restart: ${M2C_GLOBAL_SERVICES_AUTO_START}
 
-  xdebug:
-    container_name: ${E2C_CFG_DOMAIN_NAME}__xdebug
-    hostname: ${E2C_CFG_DOMAIN_NAME}__xdebug
-    image: freeyland/e2c:php-fpm-${E2C_CFG_PHP:-7.3}-xdebug-alpine
-    environment:
-      - E2C_CFG_C_UID=${E2C_CFG_C_UID}
-      - E2C_CFG_C_GID=${E2C_CFG_C_GID}
-    extra_hosts:
-      - ${E2C_CFG_DOMAIN_NAME}:${E2C_TRAEFIK_IP:-0.0.0.0}
-    environment:
-      - PHP_IDE_CONFIG=serverName=${E2C_CFG_DOMAIN_NAME}
-    depends_on:
-      - db
-    networks:
-      - default
-      - e2c
-
-  db:
-    container_name: ${E2C_CFG_DOMAIN_NAME}__db
-    hostname: ${E2C_CFG_DOMAIN_NAME}__db
-    image: mariadb:${E2C_CFG_MARIADB:-10.3}
-    environment:
-      - MYSQL_ROOT_PASSWORD=${E2C_CFG_MYSQL_ROOT_PASSWORD:-magento}
-      - MYSQL_DATABASE=${E2C_CFG_MYSQL_DATABASE:-magento}
-      - MYSQL_USER=${E2C_CFG_MYSQL_USER:-magento}
-      - MYSQL_PASSWORD=${E2C_CFG_MYSQL_PASSWORD:-magento}
+  traefik:
+    container_name: e2c.test__traefik
+    image: traefik:1.7-alpine
+    command:
+      - --api
+      - --docker
+      - --docker.domain=test
+      - --docker.network=e2c
+      - --docker.exposedByDefault=false
+    ports:
+      - "127.0.0.1:80:80"
+      - "127.0.0.1:443:443"
     volumes:
-      - ./../mysql/custom.cnf:/etc/mysql/conf.d/custom.cnf:ro
-      - db_data:/var/lib/mysql
-    networks:
-      - default
-      - e2c
+      - ~/.e2c/traefik/traefik.toml:/etc/traefik/traefik.toml:ro
+      - ~/.e2c/ssl/certs/e2c.crt:/etc/ssl/certs/e2c.crt:ro
+      - ~/.e2c/ssl/private/e2c.key:/etc/ssl/private/e2c.key:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    labels:
+      - traefik.enable=true
+      - traefik.frontend.rule=Host:traefik.e2c.test
+      - traefik.port=8080
+    restart: ${M2C_GLOBAL_SERVICES_AUTO_START}
 
-  redis:
-    container_name: ${E2C_CFG_DOMAIN_NAME}__redis
-    hostname: ${E2C_CFG_DOMAIN_NAME}__redis
-    image: redis:${E2C_CFG_REDIS:-5.0}-alpine
+  portainer:
+    container_name: e2c.test__portainer
+    image: portainer/portainer:1.22.0
     volumes:
-      - redis_data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer:/data
+    labels:
+      - traefik.enable=true
+      - traefik.frontend.rule=Host:portainer.e2c.test
+      - traefik.port=9000
+    restart: ${M2C_GLOBAL_SERVICES_AUTO_START}
+
+  mailhog:
+    container_name: e2c.test__mailhog
+    hostname: mailhog
+    image: mailhog/mailhog:v1.0.0
+    labels:
+      - traefik.enable=true
+      - traefik.frontend.rule=Host:mailhog.e2c.test
+      - traefik.port=8025
+    restart: ${M2C_GLOBAL_SERVICES_AUTO_START}
+
+  dnsmasq:
+    container_name: e2c.test__dnsmasq
+    image: jpillora/dnsmasq:1.1
+    ports:
+      - "127.0.0.1:53:53/udp"
+    volumes:
+      - ~/.e2c/dnsmasq/dnsmasq.conf:/etc/dnsmasq.conf
+    labels:
+      - traefik.enable=true
+      - traefik.frontend.rule=Host:dnsmasq.e2c.test
+      - traefik.port=8080
+    restart: ${M2C_GLOBAL_SERVICES_AUTO_START}
 
 volumes:
-  db_data:
-  redis_data:
+  portainer:
 
 networks:
-  e2c:
-    external: true
+  default:
+    name: e2c
