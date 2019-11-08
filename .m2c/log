@@ -1,0 +1,14 @@
+The E2C_CFG_DOMAIN_NAME variable is not set. Defaulting to a blank string.
+The E2C_CFG_C_UID variable is not set. Defaulting to a blank string.
+The E2C_CFG_C_GID variable is not set. Defaulting to a blank string.
+Creating network "docker_default" with the default driver
+Creating volume "docker_db_data" with default driver
+Creating volume "docker_redis_data" with default driver
+Creating volume "docker_src_data" with default driver
+Creating volume "docker_sock_data" with default driver
+Creating __redis ... 
+[1A[2KCreating __redis ... [31merror[0m[1B
+ERROR: for __redis  Cannot create container for service redis: Invalid container name (__redis), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed
+
+ERROR: for redis  Cannot create container for service redis: Invalid container name (__redis), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed
+Encountered errors while bringing up the project.
