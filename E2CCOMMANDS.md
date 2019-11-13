@@ -2,7 +2,7 @@
 
 ## Project specific
 
-| Command &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | Info |
+|  <div style="width:290px">Command</div>  | Info |
 | ------------- | ------------- |
 | `e2c add [service] [--help]` | Adds optional service to the project. Available optional services are: elasticsearch, phpmyadmin, rabbitmq and varnish.  |
 | `e2c bash [--debug] [--root] ...` | Opens the bash prompt on the project's php Docker service. With --debug flag, the bash prompt will be opened on the project's xdebug Docker service. With --root flag, the root user will be used. |
