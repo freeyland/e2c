@@ -21,7 +21,7 @@
 | `e2c remove [service] [--help]`  | Removes optional service from the project. Available optional services are: elasticsearch, phpmyadmin, rabbitmq and varnish. Run e2c remove --help for command usage information. |
 | `e2c restart [service [service ...]]` | Restarts running project Docker services and starts all stopped ones. If services explicitly specified, only those will be restarted. |
 | `e2c restart [service [service ...]]` | Starts sharing session over ngrok secure tunnels. Command accepts an optional parameter to specify a region. Ex. e2c share eu. Available regions are us, eu, ap, au, sa, jp, and in. By default, region is us. For proper functioning of this command, required dependencies will be installed. Please, visit https://github.com/shkoliar/magento-ngrok and https://github.com/shkoliar/docker-ngrok for more information. Run e2c share --help for command usage information. |
-|<img width=1200/>| |
+|<img width=1400/>| |
 ## Gobal
 
 | Command  | Info |
