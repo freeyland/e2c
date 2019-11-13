@@ -926,7 +926,7 @@ e2c_init() {
     local e2c_php_versions=("7.3" "7.2" "7.1" "7.0" "5.6")
     local e2c_mariadb_versions=("10.3" "10.2" "10.1" "10.0")
     local e2c_redis_versions=("5.0" "4.0" "3.2")
-    local e2c_magento_editions=("CE" "EE")
+    local e2c_magento_editions=("CE" "EE" "DE")
     local e2c_magento_versions=("2.3.3" "2.3.2" "2.3.1" "2.3.0" \
             "2.2.9" "2.2.8" "2.2.7" "2.2.6" "2.2.5" "2.2.4" "2.2.3" "2.2.2" "2.2.1" "2.2.0" \
             "2.1.18" "2.1.17" "2.1.16" "2.1.15" "2.1.14" "2.1.13" "2.1.12" "2.1.11" "2.1.10" \
