@@ -1346,7 +1346,7 @@ e2c_init() {
     if [[ -z ${e2c_magento_exists} ]]
     then
         
-        if [[ ${E2C_CFG_MAGENTO_EDITION} == "EE" ]] or [[ ${E2C_CFG_MAGENTO_EDITION} == "CE" ]]
+        if [[ ${E2C_CFG_MAGENTO_EDITION} == "EE" ]]  || [[ ${E2C_CFG_MAGENTO_EDITION} == "CE" ]]
         then
             e2c_info_bold "\n[Downloading magento sources via composer]\n\n"
             if [[ ${E2C_CFG_MAGENTO_EDITION} == "EE" ]]
