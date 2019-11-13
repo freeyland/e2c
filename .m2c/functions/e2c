@@ -186,6 +186,9 @@ e2c_set_opt_version() {
         "RabbitMQ")
             E2C_CFG_RABBITMQ="$e2c_res"
         ;;
+         "Edition")
+            E2C_CFG_MAGENTO_EDITION="$e2c_res"
+        ;;
     esac
 
     e2c_res=
@@ -1267,7 +1270,7 @@ e2c_init() {
             
             if [[ -z ${E2C_CFG_MAGENTO_EDITION} ]]
             then
-                e2c_set_opt_version "Magento edition (CE,EE or DE)" "${e2c_magento_editions[@]}"
+                e2c_set_opt_version "Edition" "${e2c_magento_editions[@]}"
             fi
 
             if [[ "${E2C_CFG_MAGENTO:0:1}" == "2" ]]
@@ -1340,8 +1343,6 @@ e2c_init() {
     e2c_result 0
 
     e2c_local up
-
-
 
     if [[ -z ${e2c_magento_exists} ]]
     then
@@ -1420,8 +1421,8 @@ e2c_init() {
         
             [[ "$e2c_os" == "darwin" ]] && e2c_pull --all
 
-        elseif [[ ${E2C_CFG_MAGENTO_EDITION} == "DE" ]]
-
+        elif [[ ${E2C_CFG_MAGENTO_EDITION} == "DE" ]]
+        then
             ec_info_bold "\n[Downloading magento sources]\n\n"
 
             url="http://pubfiles.nexcess.net/magento/ce-packages/magento$([[ "${E2C_CFG_MAGENTO:0:1}" == "2" ]] && \
