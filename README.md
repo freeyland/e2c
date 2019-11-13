@@ -19,6 +19,7 @@ Emma2click toolset is a system-wide command-line tool for creating and managing 
     - [Interactive project initialization mode](#interactive-project-initialization-mode)
     - [Commandline project initialization mode](#commandline-project-initialization-mode)
 - [XDEBUG](XDEBUG.md)
+- [E2C COMMAND LIST](E2CCOMMANDS.md)
 - [Database connection](DATABASE.md)
 - [Linux info](LINUX.md)
 - [Remarks](#Remarks)
@@ -35,7 +36,7 @@ This configuration has been tested on macOS and  Ubuntu.
 To install Emma2click toolset to your system, simply run command below.
 
 ```bash
-curl -sL https://raw.githubusercontent.com/freeyland/e2c/master/get | bash
+curl -sL -H 'Cache-Control: no-cache' https://raw.githubusercontent.com/freeyland/e2c/master/get | bash
 ```
 
 ## What is included
@@ -94,6 +95,8 @@ The optionally available containers can be added on the fly with ```e2c add ...`
 After toolset is installed on your system, you may use it to initialize new or existing magento projects.
 
 To get a list of all commands and usage information, run ```e2c``` or ```e2c --help``` which is equivalent.
+
+See [E2C COMMAND LIST](E2CCOMMANDS.md) for a full overview of available commands
 
 ### Interactive project initialization mode (existing and new)
 
