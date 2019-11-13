@@ -196,3 +196,4 @@ Check the errors
 
 [MIT](https://github.com/mage2click/m2c/blob/master/LICENSE)
 
+This project is based on https://github.com/mage2click/m2c and has some specific changes for internal use.
