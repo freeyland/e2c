@@ -1267,7 +1267,7 @@ e2c_init() {
             
             if [[ -z ${E2C_CFG_MAGENTO_EDITION} ]]
             then
-                e2c_set_opt_version "Magento edition (CE or EE)" "${e2c_magento_editions[@]}"
+                e2c_set_opt_version "Magento edition (CE,EE or DE)" "${e2c_magento_editions[@]}"
             fi
 
             if [[ "${E2C_CFG_MAGENTO:0:1}" == "2" ]]
@@ -1342,83 +1342,105 @@ e2c_init() {
     e2c_local up
 
 
+
     if [[ -z ${e2c_magento_exists} ]]
     then
-        e2c_info_bold "\n[Downloading magento sources via composer]\n\n"
-
-        if [[ ${E2C_CFG_MAGENTO_EDITION} == "EE" ]]
-        then
-            edition="project-enterprise-edition"
-        else
-            edition="project-community-edition"
-        fi
         
-        if [[ -n ${E2C_CFG_MAGENTO_SRC} ]]
+        if [[ ${E2C_CFG_MAGENTO_EDITION} == "EE" ]] or [[ ${E2C_CFG_MAGENTO_EDITION} == "CE" ]]
         then
-            e2c_cli notty mkdir -p "$E2C_CFG_MAGENTO_SRC"
-            e2c_msg "Composer install magento in temp folder................................  "
-            e2c_loading
-            e2c_composer create-project --repository=https://repo.magento.com magento/$edition=$E2C_CFG_MAGENTO ./temp >"$e2c_log" 2>&1
-            e2c_result $?
-            e2c_msg "Copy temp folder to /var/www/html/.....................................  "
-            e2c_loading
-            e2c_cli notty cp -r temp/. /var/www/html
-            e2c_result $?
-            e2c_msg "Remove temp folder ....................................................  "            
-            e2c_loading
-            e2c_cli notty rm -Rf temp >"$e2c_log" 2>&1
-            e2c_result $?
-            e2c_msg "Composer install freeyland/magento2-replaces...........................  "
-            e2c_loading
-            e2c_composer notty require freeyland/magento2-replaces >"$e2c_log" 2>&1
-            e2c_result $?
-            e2c_msg "Composer install hirak/prestissimo.....................................  "
-            e2c_loading
-            e2c_composer notty global require hirak/prestissimo >"$e2c_log" 2>&1
-            e2c_result $?
-            e2c_msg "Composer install cweagans/composer-patches.............................  "
-            e2c_loading
-            e2c_composer notty require cweagans/composer-patches >"$e2c_log" 2>&1
-            e2c_result $?
-            e2c_msg "Composer install studioemma/magento2-theme-optimus.....................  "
-            e2c_loading
-            e2c_composer notty require studioemma/magento2-theme-optimus >"$e2c_log" 2>&1
-            e2c_result $?
-        else
-            e2c_msg "Composer install magento in temp folder................................  "
-            e2c_loading
-            e2c_composer create-project --repository=https://repo.magento.com magento/$edition=$E2C_CFG_MAGENTO ./temp >"$e2c_log" 2>&1
-            e2c_result $?
-            e2c_msg "Copy temp folder to /var/www/html/.....................................  "
-            e2c_loading
-            e2c_cli notty cp -r temp/. /var/www/html
-            e2c_result $?
-            e2c_msg "Remove temp folder ....................................................  "            
-            e2c_loading
-            e2c_cli notty rm -Rf temp >"$e2c_log" 2>&1
-            e2c_result $?
-            e2c_msg "Composer install freeyland/magento2-replaces...........................  "
-            e2c_loading
-            e2c_composer notty require freeyland/magento2-replaces >"$e2c_log" 2>&1
-            e2c_result $?
-            e2c_msg "Composer install hirak/prestissimo.....................................  "
-            e2c_loading
-            e2c_composer notty global require hirak/prestissimo >"$e2c_log" 2>&1
-            e2c_result $?
-            e2c_msg "Composer install cweagans/composer-patches.............................  "
-            e2c_loading
-            e2c_composer notty require cweagans/composer-patches >"$e2c_log" 2>&1
-            e2c_result $?
-            e2c_msg "Composer install studioemma/magento2-theme-optimus.....................  "
-            e2c_loading
-            e2c_composer notty require studioemma/magento2-theme-optimus >"$e2c_log" 2>&1
-            e2c_result $?
+            e2c_info_bold "\n[Downloading magento sources via composer]\n\n"
+            if [[ ${E2C_CFG_MAGENTO_EDITION} == "EE" ]]
+            then
+                edition="project-enterprise-edition"
+            else
+                edition="project-community-edition"
+            fi
+            
+            if [[ -n ${E2C_CFG_MAGENTO_SRC} ]]
+            then
+                e2c_cli notty mkdir -p "$E2C_CFG_MAGENTO_SRC"
+                e2c_msg "Composer install magento in temp folder................................  "
+                e2c_loading
+                e2c_composer create-project --repository=https://repo.magento.com magento/$edition=$E2C_CFG_MAGENTO ./temp >"$e2c_log" 2>&1
+                e2c_result $?
+                e2c_msg "Copy temp folder to /var/www/html/.....................................  "
+                e2c_loading
+                e2c_cli notty cp -r temp/. /var/www/html
+                e2c_result $?
+                e2c_msg "Remove temp folder ....................................................  "            
+                e2c_loading
+                e2c_cli notty rm -Rf temp >"$e2c_log" 2>&1
+                e2c_result $?
+                e2c_msg "Composer install freeyland/magento2-replaces...........................  "
+                e2c_loading
+                e2c_composer notty require freeyland/magento2-replaces >"$e2c_log" 2>&1
+                e2c_result $?
+                e2c_msg "Composer install hirak/prestissimo.....................................  "
+                e2c_loading
+                e2c_composer notty global require hirak/prestissimo >"$e2c_log" 2>&1
+                e2c_result $?
+                e2c_msg "Composer install cweagans/composer-patches.............................  "
+                e2c_loading
+                e2c_composer notty require cweagans/composer-patches >"$e2c_log" 2>&1
+                e2c_result $?
+                e2c_msg "Composer install studioemma/magento2-theme-optimus.....................  "
+                e2c_loading
+                e2c_composer notty require studioemma/magento2-theme-optimus >"$e2c_log" 2>&1
+                e2c_result $?
+            else
+                e2c_msg "Composer install magento in temp folder................................  "
+                e2c_loading
+                e2c_composer create-project --repository=https://repo.magento.com magento/$edition=$E2C_CFG_MAGENTO ./temp >"$e2c_log" 2>&1
+                e2c_result $?
+                e2c_msg "Copy temp folder to /var/www/html/.....................................  "
+                e2c_loading
+                e2c_cli notty cp -r temp/. /var/www/html
+                e2c_result $?
+                e2c_msg "Remove temp folder ....................................................  "            
+                e2c_loading
+                e2c_cli notty rm -Rf temp >"$e2c_log" 2>&1
+                e2c_result $?
+                e2c_msg "Composer install freeyland/magento2-replaces...........................  "
+                e2c_loading
+                e2c_composer notty require freeyland/magento2-replaces >"$e2c_log" 2>&1
+                e2c_result $?
+                e2c_msg "Composer install hirak/prestissimo.....................................  "
+                e2c_loading
+                e2c_composer notty global require hirak/prestissimo >"$e2c_log" 2>&1
+                e2c_result $?
+                e2c_msg "Composer install cweagans/composer-patches.............................  "
+                e2c_loading
+                e2c_composer notty require cweagans/composer-patches >"$e2c_log" 2>&1
+                e2c_result $?
+                e2c_msg "Composer install studioemma/magento2-theme-optimus.....................  "
+                e2c_loading
+                e2c_composer notty require studioemma/magento2-theme-optimus >"$e2c_log" 2>&1
+                e2c_result $?
+            fi
+        
+            [[ "$e2c_os" == "darwin" ]] && e2c_pull --all
+
+        elseif [[ ${E2C_CFG_MAGENTO_EDITION} == "DE" ]]
+
+            ec_info_bold "\n[Downloading magento sources]\n\n"
+
+            url="http://pubfiles.nexcess.net/magento/ce-packages/magento$([[ "${E2C_CFG_MAGENTO:0:1}" == "2" ]] && \
+                echo "2")$([[ -n ${e2c_magento_sample_data} && "${E2C_CFG_MAGENTO:0:1}" == "2" ]] && \
+                echo "-with-samples")-$E2C_CFG_MAGENTO.tar.gz"
+
+            if [[ -n ${E2C_CFG_MAGENTO_SRC} ]]
+            then
+                mkdir -p "$e2c_project_dir/$E2C_CFG_MAGENTO_SRC"
+                curl -L "$url" | tar xzf - -o -C "$e2c_project_dir/$E2C_CFG_MAGENTO_SRC"
+            else
+                curl -L "$url" | tar xzf - -o -C "$e2c_project_dir"
+            fi
+
+            [[ "$e2c_os" == "darwin" ]] && e2c_push --all
         fi
-    
-        [[ "$e2c_os" == "darwin" ]] && e2c_pull --all
 
     else 
-        [[ "$m2c_os" == "darwin" ]] && e2c_push --all
+        [[ "$e2c_os" == "darwin" ]] && e2c_push --all
     fi
 
     if [[ -f "$e2c_magento_db_import" ]]
