@@ -153,6 +153,9 @@ https://markshust.com/2018/01/30/performance-tuning-docker-mac/
 
 [Linux info](LINUX.md)
 
+## Command list
+[E2C COMMAND LIST](E2CCOMMANDS.md)
+
 ## Remarks
 
 ### Uninstall
