@@ -98,14 +98,6 @@ To get a list of all commands and usage information, run ```e2c``` or ```e2c --h
 
 See [E2C COMMAND LIST](E2CCOMMANDS.md) for a full overview of available commands.
 
-During the installation you will be asked several questions in a wizard. When asked for a Magento edition you have 3 options:
-
-* CE: community edition, installed via composer
-* EE: enterprise edition, installed via composer
-* DE: community edition, downloaded from http://pubfiles.nexcess.net/magento/ce-packages/
-
-Both CE and EE will also install Studioemma/optimus theme.
-
 ### Interactive project initialization mode (existing and new)
 
 To initialize project, open the desired directory with terminal and run
@@ -117,6 +109,14 @@ e2c init
 This command will launch project initialization in interactive mode. 
 ***This is for both existing and new projects!***
 Simply follow the steps to configure the desired Docker Magento development environment. You will be guided through a wizard.
+
+When asked for a Magento edition you have 3 options:
+
+1. CE: community edition, installed via composer
+2. EE: enterprise edition, installed via composer
+3. DE: community edition, downloaded from http://pubfiles.nexcess.net/magento/ce-packages/
+
+Both CE and EE will install Studioemma/optimus theme.
 
 <p align="center"><img src="assets/images/wizard.png" width="600" align="center" alt="Emma2click wizard" /></p>
 
