@@ -189,7 +189,7 @@ Use the absolute path to your file!
         * /pub/static
         * /var
         * /vendor
-        */node_modules
+        * /node_modules
 
 ### Linux socket issue => debug help
 
