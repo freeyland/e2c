@@ -177,20 +177,18 @@ The containers will be deleted and the persistant volumes will be removed. Note 
 
 Use the absolute path to your file. There is also a bug on Mac that you cannot hib the back button.
 
-### What folders are synced
+### What folders are not synced
 
-ignore:
-      paths:
-        - .idea
-        - .vscode
-        - .m2c
-        - /bin
-        - /generated
-        - /pub/media/catalog/product
-        - /pub/static
-        - /var
-        - /vendor
-        - node_modules
+        * .idea
+        * .vscode
+        * .m2c
+        * /bin
+        * /generated
+        * /pub/media/catalog/product
+        * /pub/static
+        * /var
+        * /vendor
+        * node_modules
 
 ### Linux socket issue => debug help
 
