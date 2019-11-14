@@ -1359,6 +1359,8 @@ e2c_init() {
             
             if [[ -n ${E2C_CFG_MAGENTO_SRC} ]]
             then
+                mkdir -p "$e2c_project_dir/$E2C_CFG_MAGENTO_SRC"
+                
                 e2c_cli notty mkdir -p "$E2C_CFG_MAGENTO_SRC"
                 e2c_msg "Composer install magento in temp folder................................  "
                 e2c_loading
