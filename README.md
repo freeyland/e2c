@@ -107,7 +107,7 @@ To initialize project, open the desired directory with terminal and run
 e2c init
 ```
 
-This command will launch project initialization in interactive mode. 
+This command will launch project initialization in interactive mode.
 ***This is for both existing and new projects!***
 Simply follow the steps to configure the desired Docker Magento development environment. You will be guided through a wizard.
 
