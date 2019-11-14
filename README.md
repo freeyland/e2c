@@ -96,7 +96,15 @@ After toolset is installed on your system, you may use it to initialize new or e
 
 To get a list of all commands and usage information, run ```e2c``` or ```e2c --help``` which is equivalent.
 
-See [E2C COMMAND LIST](E2CCOMMANDS.md) for a full overview of available commands
+See [E2C COMMAND LIST](E2CCOMMANDS.md) for a full overview of available commands.
+
+During the installation you will be asked several questions in a wizard. When asked for a Magento edition you have 3 options:
+
+* CE: community edition, installed via composer
+* EE: enterprise edition, installed via composer
+* DE: community edition, downloaded from http://pubfiles.nexcess.net/magento/ce-packages/
+
+Both CE and EE will also install Studioemma/optimus theme.
 
 ### Interactive project initialization mode (existing and new)
 
