@@ -117,7 +117,7 @@ When asked for a Magento edition you have 3 options:
 2. EE: enterprise edition, installed via composer
 3. DE: community edition, downloaded from http://pubfiles.nexcess.net/magento/ce-packages/
 
-Both CE and EE will install Studioemma/optimus theme.
+Both CE and EE will install Studioemma/optimus theme and the composer package freeyland/magento2-replaces. This will disable [some core modules](https://github.com/freeyland/magento_replaces).
 
 <p align="center"><img src="assets/images/wizard.png" width="600" align="center" alt="Emma2click wizard" /></p>
 
