@@ -1,6 +1,6 @@
 # Emma2click Docker Magento <br><small>environment and toolset</small>
 
-<p align="center"><img src="assets/images/install.png" width="600" align="center" alt="Emma2click Docker Magento environment and toolset" /></p>
+<p align="center"><img src="assets/images/e2clogo.png" width="600" align="center" alt="Emma2click Docker Magento environment and toolset" /></p>
 
 <p align="center">
   <a href="https://github.com/magento/magento2" target="_blank"><img src="https://img.shields.io/badge/magento-2.X-brightgreen.svg?logo=magento&longCache=true&style=for-the-badge&logoColor=white" alt="Supported Magento Versions" /></a>
