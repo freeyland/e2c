@@ -151,6 +151,7 @@ e2c db --help
 [Ubuntu DNS changes](LINUX.md)
 
 ## Command list
+
 [E2C COMMAND LIST](E2CCOMMANDS.md)
 
 ## Performance issues
@@ -159,11 +160,11 @@ https://markshust.com/2018/01/30/performance-tuning-docker-mac/
 
 <p align="center"><img src="assets/images/docker-settings.png" width="600" align="center" alt="Docker settings" /></p>
 
-## Remarks
+## Remarks and issues
 
 ### Uninstall
 
-Please note that when you uninstall, the containers will be removed. So when having issues with e2c it is better to reinstall than to do an uninstall. Reinstall can be triggered by running the curl command again above.
+Please note that when you uninstall, the containers will be removed. So when having issues with e2c it is better to reinstall than to do an uninstall. Reinstall can be triggered by running the curl command again from above.
 
 ### Change of domain name
 
@@ -175,7 +176,7 @@ The containers will be deleted and the persistant volumes will be removed. Note 
 
 ### When importing a db
 
-Use the absolute path to your file. There is also a bug on Mac that you cannot hib the back button.
+Use the absolute path to your file!
 
 ### What folders are not synced
 
@@ -192,11 +193,11 @@ Use the absolute path to your file. There is also a bug on Mac that you cannot h
 
 ### Linux socket issue => debug help
 
-Inside php container as root 
+Inside php container as root.
 
 ```bash
 e2c bash --root
-#Check the eroors of output
+#Check the errors of output:
 /usr/local/bin/docker-php-entrypoint   php-fpm --nodeamonize
 ```
 
