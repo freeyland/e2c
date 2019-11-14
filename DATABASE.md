@@ -8,6 +8,8 @@ If you have added phpMyAdmin service during project initialization, simply open 
 m2c add phpmyadmin
 ```
 
+You can access phpmyadmin page by surfing to http://pma.[E2C_CFG_DOMAIN_NAME]
+
 ## Accessing database via SSH tunnel
 
 It is possible to access the database directly by using the SSH tunnel.

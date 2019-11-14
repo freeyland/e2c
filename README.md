@@ -22,6 +22,7 @@ Emma2click toolset is a system-wide command-line tool for creating and managing 
 - [E2C COMMAND LIST](E2CCOMMANDS.md)
 - [Database connection](DATABASE.md)
 - [Linux info](LINUX.md)
+- [Performance issues](#performance-issues)
 - [Remarks](#Remarks)
 - [License](#license)
 
@@ -137,18 +138,6 @@ e2c init --help
 e2c db --help
 ```
 
-## PhpMyadmin
-
-You can access phpmyadmin page by surfing to http://pma.[E2C_CFG_DOMAIN_NAME]
-
-## Still performance issues
-
-https://markshust.com/2018/01/30/performance-tuning-docker-mac/
-
-<p align="center"><img src="assets/images/docker-settings.png" width="600" align="center" alt="Docker settings" /></p>
-
-
-
 ## XDEBUG
 
 [XDEBUG info](XDEBUG.md)
@@ -157,12 +146,18 @@ https://markshust.com/2018/01/30/performance-tuning-docker-mac/
 
 [DATABASE info](DATABASE.md)
 
-## Ubuntu DNS changes
+## Linux info
 
-[Linux info](LINUX.md)
+[Ubuntu DNS changes](LINUX.md)
 
 ## Command list
 [E2C COMMAND LIST](E2CCOMMANDS.md)
+
+## Performance issues
+
+https://markshust.com/2018/01/30/performance-tuning-docker-mac/
+
+<p align="center"><img src="assets/images/docker-settings.png" width="600" align="center" alt="Docker settings" /></p>
 
 ## Remarks
 
