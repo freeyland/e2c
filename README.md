@@ -188,13 +188,17 @@ Use the absolute path to your file. There is also a bug on Mac that you cannot h
         * /pub/static
         * /var
         * /vendor
-        * node_modules
+        */node_modules
 
 ### Linux socket issue => debug help
 
-Inside php container as root (so not e2c bash as this is as app)
+Inside php container as root 
+
+```bash
+e2c bash --root
+#Check the eroors of output
 /usr/local/bin/docker-php-entrypoint   php-fpm --nodeamonize
-Check the errors
+```
 
 ## License
 
