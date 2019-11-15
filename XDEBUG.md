@@ -30,9 +30,49 @@ Also, press `OK` on **CLI Interpreters** dialogue box.
 Make sure that newly created **CLI Interpreter** is selected and press `OK` on **PHP** preferences section.
 ![Configuration preferences](assets/images/xdebug-configuration-php-preferences.png)
 
+## Configuration for vscode IDE
+
+Click on debug -> add configuration.
+This will create a launch.json file under .vscode
+
+![Add configuration](assets/images/xdebug-vscode-aadconfig.png)
+
+Add following content to file:
+
+```YAML
+"configurations": [
+        {
+            "name": "Listen for XDebug",
+            "type": "php",
+            "request": "launch",
+            "pathMappings": {
+               "/var/www/html": "${workspaceRoot}",
+            },
+            "port": 9000
+        }, {
+            "name": "Launch currently open script",
+            "type": "php",
+            "request": "launch",
+            "program": "${file}",
+            "cwd": "${fileDirname}",
+            "port": 9000
+        }
+    ]
+```
+
 ## Usage
+
+### PHP storm
+
 To start/stop debugging, press `Start/Stop Listening for PHP Debug Connections` button.
 ![Start stop debugging](assets/images/xdebug-configuration-start-stop-debugging.png)
+
+### VSCODE
+
+To start/stop debugging, press play button.
+![Press play button](assets/images/xdebug-vscode-play.png)
+
+### BROWSER
 
 On the browser side, you will need to set `XDEBUG_SESSION` cookie to activate Xdebug or simply use **Xdebug Helper** browser extension for that.
 ![Xdebug browser configuration](assets/images/xdebug-configuration-browser.png)
