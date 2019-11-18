@@ -46,6 +46,7 @@ RUN     apk update && \
             php7-pecl-redis \
             php7-pecl-ssh2 \
             composer \
+            gmp \
             curl \
             bash \
             git \

@@ -47,6 +47,7 @@ php7-pecl-mcrypt \
 php7-pecl-redis \
 php7-pecl-ssh2 \
 php7-pecl-xdebug \
+gmp \
 curl \
 gzip \
 lsof \
